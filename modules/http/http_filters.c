@@ -472,9 +472,12 @@ apr_status_t ap_http_filter(ap_filter_t *f, apr_bucket_brigade *b,
         }
         else if (!ctx->seen_data) {
             int saved_status = f->r->status;
+            const char *saved_status_line = f->r->status_line;
             f->r->status = HTTP_CONTINUE;
+            f->r->status_line = NULL;
             ap_send_interim_response(f->r, 0);
             AP_DEBUG_ASSERT(!f->r->expecting_100);
+            f->r->status_line = saved_status_line;
             f->r->status = saved_status;
         }
         else {
@@ -1595,9 +1598,9 @@ AP_DECLARE(int) ap_map_http_request_error(apr_status_t rv, int status)
  */
 AP_DECLARE(int) ap_discard_request_body(request_rec *r)
 {
+    int rc = OK;
+    conn_rec *c = r->connection;
     apr_bucket_brigade *bb;
-    int seen_eos;
-    apr_status_t rv;
 
     /* Sometimes we'll get in a state where the input handling has
      * detected an error where we want to drop the connection, so if
@@ -1606,54 +1609,57 @@ AP_DECLARE(int) ap_discard_request_body(request_rec *r)
      *
      * This function is also a no-op on a subrequest.
      */
-    if (r->main || r->connection->keepalive == AP_CONN_CLOSE ||
-        ap_status_drops_connection(r->status)) {
+    if (r->main || c->keepalive == AP_CONN_CLOSE) {
+        return OK;
+    }
+    if (ap_status_drops_connection(r->status)) {
+        c->keepalive = AP_CONN_CLOSE;
         return OK;
     }
 
     bb = apr_brigade_create(r->pool, r->connection->bucket_alloc);
-    seen_eos = 0;
-    do {
-        apr_bucket *bucket;
+    for (;;) {
+        apr_status_t rv;
 
         rv = ap_get_brigade(r->input_filters, bb, AP_MODE_READBYTES,
                             APR_BLOCK_READ, HUGE_STRING_LEN);
-
         if (rv != APR_SUCCESS) {
-            apr_brigade_destroy(bb);
-            return ap_map_http_request_error(rv, HTTP_BAD_REQUEST);
+            rc = ap_map_http_request_error(rv, HTTP_BAD_REQUEST);
+            goto cleanup;
         }
 
-        for (bucket = APR_BRIGADE_FIRST(bb);
-             bucket != APR_BRIGADE_SENTINEL(bb);
-             bucket = APR_BUCKET_NEXT(bucket))
-        {
-            const char *data;
-            apr_size_t len;
+        while (!APR_BRIGADE_EMPTY(bb)) {
+            apr_bucket *b = APR_BRIGADE_FIRST(bb);
 
-            if (APR_BUCKET_IS_EOS(bucket)) {
-                seen_eos = 1;
-                break;
+            if (APR_BUCKET_IS_EOS(b)) {
+                goto cleanup;
             }
 
-            /* These are metadata buckets. */
-            if (bucket->length == 0) {
-                continue;
-            }
-
-            /* We MUST read because in case we have an unknown-length
-             * bucket or one that morphs, we want to exhaust it.
+            /* There is no need to read empty or metadata buckets or
+             * buckets of known length, but we MUST read buckets of
+             * unknown length in order to exhaust them.
              */
-            rv = apr_bucket_read(bucket, &data, &len, APR_BLOCK_READ);
-            if (rv != APR_SUCCESS) {
-                apr_brigade_destroy(bb);
-                return HTTP_BAD_REQUEST;
-            }
-        }
-        apr_brigade_cleanup(bb);
-    } while (!seen_eos);
+            if (b->length == (apr_size_t)-1) {
+                apr_size_t len;
+                const char *data;
 
-    return OK;
+                rv = apr_bucket_read(b, &data, &len, APR_BLOCK_READ);
+                if (rv != APR_SUCCESS) {
+                    rc = HTTP_BAD_REQUEST;
+                    goto cleanup;
+                }
+            }
+
+            apr_bucket_delete(b);
+        }
+    }
+
+cleanup:
+    apr_brigade_cleanup(bb);
+    if (rc != OK) {
+        c->keepalive = AP_CONN_CLOSE;
+    }
+    return rc;
 }
 
 /* Here we deal with getting the request message body from the client.
@@ -1697,6 +1703,7 @@ AP_DECLARE(int) ap_setup_client_block(request_rec *r, int read_policy)
 {
     const char *tenc = apr_table_get(r->headers_in, "Transfer-Encoding");
     const char *lenp = apr_table_get(r->headers_in, "Content-Length");
+    apr_off_t limit_req_body = ap_get_limit_req_body(r);
 
     r->read_body = read_policy;
     r->read_chunked = 0;
@@ -1729,6 +1736,11 @@ AP_DECLARE(int) ap_setup_client_block(request_rec *r, int read_policy)
         && (r->read_chunked || (r->remaining > 0))) {
         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(01595)
                       "%s with body is not allowed for %s", r->method, r->uri);
+        return HTTP_REQUEST_ENTITY_TOO_LARGE;
+    }
+
+    if (limit_req_body > 0 && (r->remaining > limit_req_body)) {
+        /* will be logged when the body is discarded */
         return HTTP_REQUEST_ENTITY_TOO_LARGE;
     }
 
@@ -1839,6 +1851,7 @@ AP_DECLARE(long) ap_get_client_block(request_rec *r, char *buffer,
 /* Context struct for ap_http_outerror_filter */
 typedef struct {
     int seen_eoc;
+    int first_error;
 } outerror_filter_ctx_t;
 
 /* Filter to handle any error buckets on output */
@@ -1867,10 +1880,18 @@ apr_status_t ap_http_outerror_filter(ap_filter_t *f,
                 /* stream aborted and we have not ended it yet */
                 r->connection->keepalive = AP_CONN_CLOSE;
             }
+            /*
+             * Memorize the status code of the first error bucket for possible
+             * later use.
+             */
+            if (!ctx->first_error) {
+                ctx->first_error = ((ap_bucket_error *)(e->data))->status;
+            }
             continue;
         }
         /* Detect EOC buckets and memorize this in the context. */
         if (AP_BUCKET_IS_EOC(e)) {
+            r->connection->keepalive = AP_CONN_CLOSE;
             ctx->seen_eoc = 1;
         }
     }
@@ -1894,6 +1915,18 @@ apr_status_t ap_http_outerror_filter(ap_filter_t *f,
      *              EOS bucket.
      */
     if (ctx->seen_eoc) {
+        /*
+         * Set the request status to the status of the first error bucket.
+         * This should ensure that we log an appropriate status code in
+         * the access log.
+         * We need to set r->status on each call after we noticed an EOC as
+         * data bucket generators like ap_die might have changed the status
+         * code. But we know better in this case and insist on the status
+         * code that we have seen in the error bucket.
+         */
+        if (ctx->first_error) {
+            r->status = ctx->first_error;
+        }
         for (e = APR_BRIGADE_FIRST(b);
              e != APR_BRIGADE_SENTINEL(b);
              e = APR_BUCKET_NEXT(e))

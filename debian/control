@@ -16,7 +16,7 @@ Build-Depends: debhelper-compat (= 13),
                libbrotli-dev,
                liblua5.3-dev,
                libnghttp2-dev,
-               libpcre3-dev,
+               libpcre2-dev,
                libssl-dev,
                libxml2-dev,
                lsb-release,
@@ -25,7 +25,7 @@ Build-Depends: debhelper-compat (= 13),
                libcurl4-openssl-dev | libcurl4-dev,
                libjansson-dev
 Build-Conflicts: autoconf2.13
-Standards-Version: 4.6.0
+Standards-Version: 4.6.2
 Vcs-Browser: https://salsa.debian.org/apache-team/apache2
 Vcs-Git: https://salsa.debian.org/apache-team/apache2.git
 Homepage: https://httpd.apache.org/
@@ -37,7 +37,7 @@ Depends: apache2-bin (= ${binary:Version}),
          apache2-data (= ${source:Version}),
          apache2-utils (= ${binary:Version}),
          lsb-base,
-         mime-support,
+         media-types,
          ${perl:Depends},
          procps [!hurd-i386],
          ${misc:Depends}
@@ -46,12 +46,8 @@ Suggests: apache2-doc,
           apache2-suexec-pristine | apache2-suexec-custom,
           www-browser
 Pre-Depends: ${misc:Pre-Depends}
-Conflicts: apache2.2-bin,
-           apache2.2-common
 Provides: httpd,
           httpd-cgi
-Replaces: apache2.2-bin,
-          apache2.2-common
 Description: Apache HTTP Server
  The Apache HTTP Server Project's goal is to build a secure, efficient and
  extensible HTTP server as standards-compliant open source software. The
@@ -157,6 +153,7 @@ Architecture: any
 Depends: debhelper (>= 10),
          libapr1-dev,
          libaprutil1-dev,
+         libpcre2-dev,
          openssl,
          ${misc:Depends},
          ${perl:Depends}
