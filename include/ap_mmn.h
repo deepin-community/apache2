@@ -581,7 +581,20 @@
  * 20120211.117 (2.4.50-dev) Add ap_pre_connection
  * 20120211.118 (2.4.51-dev) Add ap_unescape_url_ex() and deprecate
  *                           AP_NORMALIZE_DROP_PARAMETERS
- * 
+ * 20120211.119 (2.4.51-dev) Add dav_validate_root_ns(), dav_find_child_ns(),
+ *                           dav_find_next_ns(), dav_find_attr_ns() and
+ *                           dav_find_attr().
+ * 20120211.120 (2.4.51-dev) Add dav_liveprop_elem structure and
+ *                           dav_get_liveprop_element().
+ * 20120211.121 (2.4.51-dev) Add ap_post_read_request()
+ * 20120211.122 (2.4.51-dev) Add ap_thread_create(), ap_thread_main_create()
+ *                           and ap_thread_current()
+ * 20120211.123 (2.4.51-dev) Added ap_pcre_version_string(), AP_REG_PCRE_COMPILED
+ *                           and AP_REG_PCRE_LOADED to ap_regex.h.
+ * 20120211.124 (2.4.51-dev) Add name_ex to struct proxy_worker_shared
+ * 20120211.125 (2.4.55-dev) Export mod_http2.h as public header
+ * 20120211.126 (2.4.55-dev) Add additional hcmethod_t enums and PROXY_WORKER_IS_ERROR
+ * 20120211.127 (2.4.56-dev) Add ap_proxy_canonenc_ex
  */
 
 #define MODULE_MAGIC_COOKIE 0x41503234UL /* "AP24" */
@@ -589,7 +602,7 @@
 #ifndef MODULE_MAGIC_NUMBER_MAJOR
 #define MODULE_MAGIC_NUMBER_MAJOR 20120211
 #endif
-#define MODULE_MAGIC_NUMBER_MINOR 118                 /* 0...n */
+#define MODULE_MAGIC_NUMBER_MINOR 127                 /* 0...n */
 
 /**
  * Determine if the server's current MODULE_MAGIC_NUMBER is at least a

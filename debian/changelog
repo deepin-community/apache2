@@ -1,6 +1,166 @@
+apache2 (2.4.57-2) unstable; urgency=medium
+
+  * Revert debian/* changes (Bookworm freeze)
+
+ -- Yadd <yadd@debian.org>  Thu, 13 Apr 2023 07:26:51 +0400
+
+apache2 (2.4.57-1) unstable; urgency=medium
+
+  * New upstream version 2.4.57
+  * Drop 2.4.56-regression patches
+
+ -- Yadd <yadd@debian.org>  Sat, 08 Apr 2023 06:57:16 +0400
+
+apache2 (2.4.56-2) unstable; urgency=medium
+
+  * Fix regression in mod_rewrite introduced in version 2.4.56
+    (Closes: #1033284)
+  * Fix regression in http2 introduced by 2.4.56 (Closes: #1033408)
+
+ -- Yadd <yadd@debian.org>  Sun, 02 Apr 2023 06:54:25 +0400
+
+apache2 (2.4.56-1) unstable; urgency=medium
+
+  * New upstream version (Closes: #1032476, CVE-2023-27522, CVE-2023-25690)
+
+ -- Yadd <yadd@debian.org>  Wed, 08 Mar 2023 06:44:05 +0400
+
+apache2 (2.4.55-1) unstable; urgency=medium
+
+  [ Hendrik Jäger ]
+  * disable ssl session tickets
+  * redundant example as already enabled in the default config
+  * logrotate indentation
+  * Update example how to prevent access to VCS directories
+
+  [ lintian-brush ]
+  * Update lintian override info to new format:
+    + debian/source/lintian-overrides: line 2, 4-5, 8
+    + debian/apache2-data.lintian-overrides: line 2-5
+    + debian/apache2-bin.lintian-overrides: line 3
+    + debian/apache2-doc.lintian-overrides: line 2
+    + debian/apache2.lintian-overrides: line 6
+  * Set upstream metadata fields: Repository-Browse.
+  * Update standards version to 4.6.2, no changes needed.
+
+  [ Yadd ]
+  * New upstream version (Closes: CVE-2006-20001, CVE-2022-36760,
+    CVE-2022-37436)
+
+ -- Yadd <yadd@debian.org>  Wed, 18 Jan 2023 07:41:55 +0400
+
+apache2 (2.4.54-5) unstable; urgency=medium
+
+  [ Hendrik Jäger ]
+  * fix: one oom-killed thread should not take down the whole service
+  * fix: remove modelines
+  * fix: update clickjacking protection example
+  * fix: use tab for indentation, even in commented examples
+
+  [ Yadd ]
+  * Revert "Fix: confusing and impractical naming" (unbreak squid and haproxy
+    tests)
+
+ -- Yadd <yadd@debian.org>  Tue, 29 Nov 2022 15:56:10 +0100
+
+apache2 (2.4.54-4) unstable; urgency=medium
+
+  [ Charles Plessy ]
+  * Replace mime-support transition package with media-types (Closes: #980275)
+
+  [ Hendrik Jäger ]
+  * fix mislead safety precautions: don't hide errors when enabling a module.
+    MR !20
+  * fix trailing spaces and indentation inconsistencies. MR !19 !21 !22
+  * Fix confusing and impractical naming: rename default-ssl.conf into
+    000-default-ssl.conf. MR !23
+  * Fix confusing keyword: replace _default_ by *. MR !24
+
+ -- Yadd <yadd@debian.org>  Thu, 24 Nov 2022 10:45:00 +0100
+
+apache2 (2.4.54-3) unstable; urgency=medium
+
+  [ Hendrik Jäger ]
+  * Do not enable global alias /manual
+  * mention not enabling /manual for the docs in the NEWS
+
+ -- Yadd <yadd@debian.org>  Wed, 12 Oct 2022 09:20:52 +0200
+
+apache2 (2.4.54-2) unstable; urgency=medium
+
+  * Move cgid socket into a writeable directory (Closes: #1014056)
+  * Update lintian overrides
+  * Declare compliance with policy 4.6.1
+  * Install NOTICE in each package
+
+ -- Yadd <yadd@debian.org>  Tue, 05 Jul 2022 15:49:58 +0200
+
+apache2 (2.4.54-1) unstable; urgency=medium
+
+  [ Simon Deziel ]
+  * Escape literal "." for BrowserMatch directives in setenvif.conf
+  * Use non-capturing regex with FilesMatch directive in default-ssl.conf
+
+  [ Ondřej Surý ]
+  * New upstream version 2.4.54 (Closes: #1012513, CVE-2022-31813,
+    CVE-2022-26377, CVE-2022-28614, CVE-2022-28615, CVE-2022-29404,
+    CVE-2022-30522, CVE-2022-30556, CVE-2022-28330)
+
+  [ Yadd ]
+  * Fix htcacheclean doc (Closes: #1010455)
+  * New upstream version 2.4.54
+
+ -- Yadd <yadd@debian.org>  Thu, 09 Jun 2022 06:33:53 +0200
+
+apache2 (2.4.53-2) unstable; urgency=medium
+
+  * Clean useless Conflicts/Replace
+  * apache2-dev: add missing dependency on libpcre2-dev (Closes: #1007254)
+
+ -- Yadd <yadd@debian.org>  Tue, 15 Mar 2022 15:27:39 +0100
+
+apache2 (2.4.53-1) unstable; urgency=medium
+
+  * New upstream version 2.4.53 (Closes: CVE-2022-22719,
+    CVE-2022-22720, CVE-2022-22721, CVE-2022-23943)
+  * Update copyright
+  * Patches:
+    + Drop fix-2.4.52-regression.patch, now included in upstream
+    + Refresh fhs_compliance.patch
+    + Update and disable child_processes_fail_to_start.patch
+  * Update test framework
+  * Back to unstable
+
+ -- Yadd <yadd@debian.org>  Mon, 14 Mar 2022 17:10:39 +0100
+
+apache2 (2.4.52-3) experimental; urgency=medium
+
+  * Fix autopkgtest with libpcre2 (autopkgtest still fails due to an SSL
+    error)
+  * Set hardening=+all instead of hardening=+bindnow
+
+ -- Yadd <yadd@debian.org>  Tue, 28 Dec 2021 21:20:05 +0100
+
+apache2 (2.4.52-2) experimental; urgency=medium
+
+  * Build with pcre2 (Closes: #1000114)
+
+ -- Yadd <yadd@debian.org>  Tue, 28 Dec 2021 20:01:43 +0100
+
+apache2 (2.4.52-1) unstable; urgency=medium
+
+  * Refresh suexec-custom.patch
+  * Update lintian overrides
+  * Wrap long lines in changelog entries: 2.4.51-2.
+  * New upstream version 2.4.52 (Closes: CVE-2021-44224, CVE-2021-44790)
+  * Refresh patches
+
+ -- Yadd <yadd@debian.org>  Mon, 20 Dec 2021 18:42:09 +0100
+
 apache2 (2.4.51-2) unstable; urgency=medium
 
-  * Add patch to have new macro_ignore_empty and macro_ignore_bad_nesting parameters
+  * Add patch to have new macro_ignore_empty and macro_ignore_bad_nesting
+    parameters
 
  -- Yadd <yadd@debian.org>  Mon, 25 Oct 2021 18:37:03 +0200
 
@@ -49,8 +209,9 @@ apache2 (2.4.49-2) unstable; urgency=medium
 apache2 (2.4.49-1) unstable; urgency=medium
 
   * Update upstream GPG keys
-  * New upstream version 2.4.49 (Closes: CVE-2021-34798, CVE-2021-36160,
-    CVE-2021-39275, CVE-2021-40438)
+  * New upstream version 2.4.51. Closes: CVE-2021-33193, CVE-2021-34798,
+    CVE-2021-36160, CVE-2021-39275, CVE-2021-40438, CVE-2021-41524,
+    CVE-2021-41773, CVE-2021-42013)
   * Refresh patches
 
  -- Yadd <yadd@debian.org>  Thu, 16 Sep 2021 06:22:23 +0200

@@ -76,8 +76,12 @@ enum enctype {
     enc_path, enc_search, enc_user, enc_fpath, enc_parm
 };
 
+/* Flags for ap_proxy_canonenc_ex */
+#define PROXY_CANONENC_FORCEDEC 0x01
+#define PROXY_CANONENC_NOENCODEDSLASHENCODING 0x02
+
 typedef enum {
-    NONE, TCP, OPTIONS, HEAD, GET, CPING, PROVIDER, EOT
+    NONE, TCP, OPTIONS, HEAD, GET, CPING, PROVIDER, OPTIONS11, HEAD11, GET11, EOT
 } hcmethod_t;
 
 typedef struct {
@@ -354,6 +358,8 @@ PROXY_WORKER_HC_FAIL )
 
 #define PROXY_WORKER_IS_HCFAILED(f)   ( (f)->s->status &  PROXY_WORKER_HC_FAIL )
 
+#define PROXY_WORKER_IS_ERROR(f)   ( (f)->s->status &  PROXY_WORKER_IN_ERROR )
+
 #define PROXY_WORKER_IS(f, b)   ( (f)->s->status & (b) )
 
 /* default worker retry timeout in seconds */
@@ -371,6 +377,7 @@ PROXY_WORKER_HC_FAIL )
 #define PROXY_WORKER_MAX_SECRET_SIZE     64
 
 #define PROXY_RFC1035_HOSTNAME_SIZE	256
+#define PROXY_WORKER_EXT_NAME_SIZE      384
 
 /* RFC-1035 mentions limits of 255 for host-names and 253 for domain-names,
  * dotted together(?) this would fit the below size (+ trailing NUL).
@@ -391,11 +398,14 @@ do {                             \
 (w)->s->io_buffer_size_set   = (c)->io_buffer_size_set;    \
 } while (0)
 
+#define PROXY_SHOULD_PING_100_CONTINUE(w, r) \
+    ((w)->s->ping_timeout_set \
+     && (PROXYREQ_REVERSE == (r)->proxyreq) \
+     && ap_request_has_body((r)))
+
 #define PROXY_DO_100_CONTINUE(w, r) \
-((w)->s->ping_timeout_set \
- && (PROXYREQ_REVERSE == (r)->proxyreq) \
- && !(apr_table_get((r)->subprocess_env, "force-proxy-request-1.0")) \
- && ap_request_has_body((r)))
+    (PROXY_SHOULD_PING_100_CONTINUE(w, r) \
+     && !apr_table_get((r)->subprocess_env, "force-proxy-request-1.0"))
 
 /* use 2 hashes */
 typedef struct {
@@ -473,6 +483,7 @@ typedef struct {
     apr_size_t   response_field_size; /* Size of proxy response buffer in bytes. */
     unsigned int response_field_size_set:1;
     char      secret[PROXY_WORKER_MAX_SECRET_SIZE]; /* authentication secret (e.g. AJP13) */
+    char      name_ex[PROXY_WORKER_EXT_NAME_SIZE]; /* Extended name (>96 chars for 2.4.x) */
 } proxy_worker_shared;
 
 #define ALIGNED_PROXY_WORKER_SHARED_SIZE (APR_ALIGN_DEFAULT(sizeof(proxy_worker_shared)))
@@ -669,6 +680,8 @@ PROXY_DECLARE(apr_status_t) ap_proxy_strncpy(char *dst, const char *src,
                                              apr_size_t dlen);
 PROXY_DECLARE(int) ap_proxy_hex2c(const char *x);
 PROXY_DECLARE(void) ap_proxy_c2hex(int ch, char *x);
+PROXY_DECLARE(char *)ap_proxy_canonenc_ex(apr_pool_t *p, const char *x, int len, enum enctype t,
+                                          int flags, int proxyreq);
 PROXY_DECLARE(char *)ap_proxy_canonenc(apr_pool_t *p, const char *x, int len, enum enctype t,
                                        int forcedec, int proxyreq);
 PROXY_DECLARE(char *)ap_proxy_canon_netloc(apr_pool_t *p, char **const urlp, char **userp,
@@ -750,6 +763,7 @@ PROXY_DECLARE(int) ap_proxy_worker_can_upgrade(apr_pool_t *p,
 #define AP_PROXY_WORKER_IS_PREFIX   (1u << 0)
 #define AP_PROXY_WORKER_IS_MATCH    (1u << 1)
 #define AP_PROXY_WORKER_IS_MALLOCED (1u << 2)
+#define AP_PROXY_WORKER_NO_UDS      (1u << 3)
 
 /**
  * Get the worker from proxy configuration, looking for either PREFIXED or
@@ -1335,7 +1349,8 @@ typedef struct {
     struct proxy_tunnel_conn *client,
                              *origin;
     apr_size_t read_buf_size;
-    int replied;
+    int replied; /* TODO 2.5+: one bit to merge in below bitmask */
+    unsigned int nohalfclose :1;
 } proxy_tunnel_rec;
 
 /**

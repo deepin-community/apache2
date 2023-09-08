@@ -104,7 +104,7 @@ AP_DECLARE_HOOK(const char *,ssl_var_lookup,
 /**
  * Lookup an SSL related variable for the server/connection/request or a global
  * value when all those parameters are set to NULL. Pool and name must always be
- * provided and the returned value (if not NULL) will be allocated fromt he pool.
+ * provided and the returned value (if not NULL) will be allocated from the pool.
  * @param p The pool to allocate a returned value in, MUST be provided
  * @param s The server to inquire a value for, maybe NULL
  * @param c The current connection, maybe NULL
@@ -118,14 +118,14 @@ AP_DECLARE(const char *) ap_ssl_var_lookup(apr_pool_t *p, server_rec *s,
 
 /**
  * Register to provide certificate/key files for servers. Certificate files are
- * exepcted to contain the certificate chain, beginning with the server's certificate,
+ * expected to contain the certificate chain, beginning with the server's certificate,
  * excluding the trust anchor, in PEM format.
  * They must be accompanied by a private key file, also in PEM format.
  *
  * @param s the server certificates are collected for
  * @param p the pool to use for allocations
- * @param cert_file and array of const char* with the path to the certificate chain
- * @param key_file and array of const char* with the path to the private key file
+ * @param cert_files an array of const char* with the path to the certificate chain
+ * @param key_files an array of const char* with the path to the private key file
  * @return OK if files were added, DECLINED if not, or other for error.
  */
 
@@ -141,8 +141,8 @@ AP_DECLARE_HOOK(int, ssl_add_cert_files, (server_rec *s, apr_pool_t *p,
  *
  * @param s the server certificates are collected for
  * @param p the pool to use for allocations
- * @param cert_file and array of const char* with the path to the certificate chain
- * @param key_file and array of const char* with the path to the private key file
+ * @param cert_files an array of const char* with the path to the certificate chain
+ * @param key_files an array of const char* with the path to the private key file
  */
 AP_DECLARE(apr_status_t) ap_ssl_add_cert_files(server_rec *s, apr_pool_t *p,
                                                apr_array_header_t *cert_files,
@@ -156,8 +156,8 @@ AP_DECLARE(apr_status_t) ap_ssl_add_cert_files(server_rec *s, apr_pool_t *p,
  *
  * @param s the server certificates are collected for
  * @param p the pool to use for allocations
- * @param cert_file and array of const char* with the path to the certificate chain
- * @param key_file and array of const char* with the path to the private key file
+ * @param cert_files an array of const char* with the path to the certificate chain
+ * @param key_files an array of const char* with the path to the private key file
  * @return OK if files were added, DECLINED if not, or other for error.
  */
 AP_DECLARE_HOOK(int, ssl_add_fallback_cert_files, (server_rec *s, apr_pool_t *p,
@@ -174,8 +174,8 @@ AP_DECLARE_HOOK(int, ssl_add_fallback_cert_files, (server_rec *s, apr_pool_t *p,
  *
  * @param s the server certificates are collected for
  * @param p the pool to use for allocations
- * @param cert_file and array of const char* with the path to the certificate chain
- * @param key_file and array of const char* with the path to the private key file
+ * @param cert_files an array of const char* with the path to the certificate chain
+ * @param key_files an array of const char* with the path to the private key file
  */
 AP_DECLARE(apr_status_t) ap_ssl_add_fallback_cert_files(server_rec *s, apr_pool_t *p,
                                                         apr_array_header_t *cert_files,
