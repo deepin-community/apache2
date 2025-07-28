@@ -21,12 +21,14 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceCompiles)
+INCLUDE("build/build-modules-c.cmake")
 
 FIND_PACKAGE(LibXml2)
 FIND_PACKAGE(Lua51)
 FIND_PACKAGE(OpenSSL)
 FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(CURL)
+FIND_PACKAGE(PCRE2 COMPONENTS 8BIT)
 
 # Options for support libraries not supported by cmake-bundled FindFOO
 
@@ -47,7 +49,10 @@ ENDIF()
 # PCRE names its libraries differently for debug vs. release builds.
 # We can't query our own CMAKE_BUILD_TYPE at configure time.
 # If the debug version exists in PREFIX/lib, default to that one.
-IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcre2-8d.lib")
+IF(PCRE2_FOUND)
+  SET(default_pcre_libraries "PCRE2::8BIT")
+  SET(default_pcre_cflags "-DHAVE_PCRE2")
+ELSEIF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcre2-8d.lib")
   SET(default_pcre_libraries ${CMAKE_INSTALL_PREFIX}/lib/pcre2-8d.lib)
   SET(default_pcre_cflags "-DHAVE_PCRE2")
 ELSEIF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/pcre2-8.lib")
@@ -71,6 +76,14 @@ ELSE()
   SET(default_brotli_libraries)
 ENDIF()
 
+IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/libcurl_imp.lib")
+  SET(default_curl_libraries "${CMAKE_INSTALL_PREFIX}/lib/libcurl_imp.lib")
+ELSEIF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/libcurl.lib")
+  SET(default_curl_libraries "${CMAKE_INSTALL_PREFIX}/lib/libcurl.lib")
+ELSE()
+  SET(default_curl_libraries)
+ENDIF()
+
 IF(EXISTS "${CMAKE_INSTALL_PREFIX}/lib/jansson.lib")
   SET(default_jansson_libraries "${CMAKE_INSTALL_PREFIX}/lib/jansson.lib")
 ELSE()
@@ -88,6 +101,8 @@ SET(LIBXML2_ICONV_INCLUDE_DIR     ""                     CACHE STRING "Directory
 SET(LIBXML2_ICONV_LIBRARIES       ""                     CACHE STRING "iconv libraries to link with for libxml2")
 SET(BROTLI_INCLUDE_DIR    "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with include files for Brotli")
 SET(BROTLI_LIBRARIES      ${default_brotli_libraries}    CACHE STRING "Brotli libraries to link with")
+SET(CURL_INCLUDE_DIR      "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with include files for cURL")
+SET(CURL_LIBRARIES        ${default_curl_libraries}         CACHE STRING "cURL libraries to link with")
 SET(JANSSON_INCLUDE_DIR   "${CMAKE_INSTALL_PREFIX}/include" CACHE STRING "Directory with include files for jansson")
 SET(JANSSON_LIBRARIES     "${default_jansson_libraries}" CACHE STRING "Jansson libraries to link with")
 # end support library configuration
@@ -443,15 +458,16 @@ SET(mod_http2_extra_defines          ssize_t=long)
 SET(mod_http2_extra_includes         ${NGHTTP2_INCLUDE_DIR})
 SET(mod_http2_extra_libs             ${NGHTTP2_LIBRARIES})
 SET(mod_http2_extra_sources
-   modules/http2/h2_bucket_beam.c     modules/http2/h2_bucket_eos.c
-   modules/http2/h2_c1.c              modules/http2/h2_c1_io.c
-   modules/http2/h2_c2.c              modules/http2/h2_c2_filter.c
-   modules/http2/h2_config.c          modules/http2/h2_conn_ctx.c
-   modules/http2/h2_mplx.c            modules/http2/h2_headers.c
-   modules/http2/h2_protocol.c        modules/http2/h2_push.c
-   modules/http2/h2_request.c         modules/http2/h2_session.c
-   modules/http2/h2_stream.c          modules/http2/h2_switch.c
-   modules/http2/h2_util.c            modules/http2/h2_workers.c
+  modules/http2/h2_bucket_beam.c     modules/http2/h2_bucket_eos.c
+  modules/http2/h2_c1.c              modules/http2/h2_c1_io.c
+  modules/http2/h2_c2.c              modules/http2/h2_c2_filter.c
+  modules/http2/h2_config.c          modules/http2/h2_conn_ctx.c
+  modules/http2/h2_mplx.c            modules/http2/h2_headers.c
+  modules/http2/h2_protocol.c        modules/http2/h2_push.c
+  modules/http2/h2_request.c         modules/http2/h2_session.c
+  modules/http2/h2_stream.c          modules/http2/h2_switch.c
+  modules/http2/h2_util.c            modules/http2/h2_workers.c
+  modules/http2/h2_ws.c
 )
 SET(mod_ldap_extra_defines           LDAP_DECLARE_EXPORT)
 SET(mod_ldap_extra_libs              wldap32)
@@ -592,36 +608,29 @@ SET(install_targets)
 SET(install_bin_pdb)
 SET(install_modules) # special handling vs. other installed targets
 SET(install_modules_pdb)
-SET(builtin_module_shortnames "win32 mpm_winnt http so") # core added automatically
+SET(builtin_module_shortnames)
+LIST(APPEND builtin_module_shortnames "win32" "mpm_winnt" "http" "so") # core added automatically
 SET(extra_builtin_modules) # the ones specified with -DWITH_MODULES=
 
-IF(WITH_MODULES) # modules statically linked with the server
-  STRING(REPLACE "," ";" WITH_MODULE_LIST ${WITH_MODULES})
-  FOREACH(static_mod ${WITH_MODULE_LIST})
-    STRING(REGEX MATCH   "[^/]+\\.c"           mod_basename    ${static_mod})
-    STRING(REGEX REPLACE "^mod_(.*)\\.c" "\\1" mod_module_name ${mod_basename})     
-    SET(builtin_module_shortnames "${builtin_module_shortnames} ${mod_module_name}")
-    CONFIGURE_FILE(${static_mod} ${PROJECT_BINARY_DIR}/ COPYONLY)
-    SET(extra_builtin_modules ${extra_builtin_modules} ${PROJECT_BINARY_DIR}/${mod_basename})
-  ENDFOREACH()
-  EXECUTE_PROCESS(COMMAND cmd /c "echo ${builtin_module_shortnames}| awk -f ${CMAKE_CURRENT_SOURCE_DIR}/build/build-modules-c.awk > ${PROJECT_BINARY_DIR}/modules.c" RESULT_VARIABLE rv)
-  IF(rv)
-    MESSAGE(FATAL_ERROR "build-modules-c.awk failed (${rv})")
-  ENDIF()
-ELSE()
-  # no extra built-in modules; use the default modules.c to avoid the awk prereq
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/os/win32/modules.c ${PROJECT_BINARY_DIR}/ COPYONLY)
-ENDIF()
+STRING(REPLACE "," ";" WITH_MODULE_LIST "${WITH_MODULES}")
+FOREACH(static_mod ${WITH_MODULE_LIST})
+  STRING(REGEX MATCH   "[^/]+\\.c"           mod_basename    ${static_mod})
+  STRING(REGEX REPLACE "^mod_(.*)\\.c" "\\1" mod_module_name ${mod_basename})
+  LIST(APPEND builtin_module_shortnames "${mod_module_name}")
+  CONFIGURE_FILE(${static_mod} ${PROJECT_BINARY_DIR}/ COPYONLY)
+  SET(extra_builtin_modules ${extra_builtin_modules} ${PROJECT_BINARY_DIR}/${mod_basename})
+ENDFOREACH()
+
+generate_builtin_modules_c("${PROJECT_BINARY_DIR}/modules.c" "${builtin_module_shortnames}")
 
 # for easy reference from .dll/.so builds
 CONFIGURE_FILE(os/win32/BaseAddr.ref ${PROJECT_BINARY_DIR}/ COPYONLY)
 
 ADD_EXECUTABLE(gen_test_char server/gen_test_char.c)
-GET_TARGET_PROPERTY(GEN_TEST_CHAR_EXE gen_test_char LOCATION)
 ADD_CUSTOM_COMMAND(
   COMMENT "Generating character tables, test_char.h, for current locale"
   DEPENDS gen_test_char
-  COMMAND ${GEN_TEST_CHAR_EXE} > ${PROJECT_BINARY_DIR}/test_char.h
+  COMMAND $<TARGET_FILE:gen_test_char> > ${PROJECT_BINARY_DIR}/test_char.h
   OUTPUT ${PROJECT_BINARY_DIR}/test_char.h
 )
 ADD_CUSTOM_TARGET(
@@ -1010,6 +1019,8 @@ MESSAGE(STATUS "  libxml2 iconv prereq libraries .. : ${LIBXML2_ICONV_LIBRARIES}
 MESSAGE(STATUS "  Brotli include directory......... : ${BROTLI_INCLUDE_DIR}")
 MESSAGE(STATUS "  Brotli libraries ................ : ${BROTLI_LIBRARIES}")
 MESSAGE(STATUS "  Curl include directory........... : ${CURL_INCLUDE_DIR}")
+MESSAGE(STATUS "  Curl libraries .................. : ${CURL_LIBRARIES}")
+MESSAGE(STATUS "  Jansson include directory ....... : ${JANSSON_INCLUDE_DIR}")
 MESSAGE(STATUS "  Jansson libraries ............... : ${JANSSON_LIBRARIES}")
 MESSAGE(STATUS "  Extra include directories ....... : ${EXTRA_INCLUDES}")
 MESSAGE(STATUS "  Extra compile flags ............. : ${EXTRA_COMPILE_FLAGS}")

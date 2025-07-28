@@ -183,7 +183,7 @@ static apr_status_t notify(md_job_t *job, const char *reason,
         if (mc->notify_cmd) {
             cmdline = apr_psprintf(p, "%s %s", mc->notify_cmd, job->mdomain);
             apr_tokenize_to_argv(cmdline, (char***)&argv, p);
-            rv = md_util_exec(p, argv[0], argv, NULL, &exit_code);
+            rv = md_util_exec(p, argv[0], argv, &exit_code);
 
             if (APR_SUCCESS == rv && exit_code) rv = APR_EGENERAL;
             if (APR_SUCCESS != rv) {
@@ -202,7 +202,7 @@ static apr_status_t notify(md_job_t *job, const char *reason,
     if (mc->message_cmd) {
         cmdline = apr_psprintf(p, "%s %s %s", mc->message_cmd, reason, job->mdomain);
         apr_tokenize_to_argv(cmdline, (char***)&argv, p);
-        rv = md_util_exec(p, argv[0], argv, NULL, &exit_code);
+        rv = md_util_exec(p, argv[0], argv, &exit_code);
 
         if (APR_SUCCESS == rv && exit_code) rv = APR_EGENERAL;
         if (APR_SUCCESS != rv) {
@@ -363,6 +363,12 @@ static void merge_srv_config(md_t *md, md_srv_conf_t *base_sc, apr_pool_t *p)
     if (md->stapling < 0) {
         md->stapling = md_config_geti(md->sc, MD_CONFIG_STAPLING);
     }
+    if (!md->profile) {
+        md->profile = md_config_gets(md->sc, MD_CONFIG_CA_PROFILE);
+    }
+    if (md->profile_mandatory < 0) {
+        md->profile_mandatory = md_config_geti(md->sc, MD_CONFIG_CA_PROFILE_MANDATORY);
+    }
 }
 
 static apr_status_t check_coverage(md_t *md, const char *domain, server_rec *s,
@@ -377,12 +383,12 @@ static apr_status_t check_coverage(md_t *md, const char *domain, server_rec *s,
         return APR_SUCCESS;
     }
     else {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, s, APLOGNO(10040)
+        ap_log_error(APLOG_MARK, APLOG_WARNING, 0, s, APLOGNO(10040)
                      "Virtual Host %s:%d matches Managed Domain '%s', but the "
                      "name/alias %s itself is not managed. A requested MD certificate "
                      "will not match ServerName.",
                      s->server_hostname, s->port, md->name, domain);
-        return APR_EINVAL;
+        return APR_SUCCESS;
     }
 }
 
@@ -586,18 +592,30 @@ static apr_status_t link_md_to_servers(md_mod_conf_t *mc, md_t *md, server_rec *
         for (i = 0; i < md->domains->nelts; ++i) {
             domain = APR_ARRAY_IDX(md->domains, i, const char*);
 
-            if (ap_matches_request_vhost(&r, domain, s->port)
-                || (md_dns_is_wildcard(p, domain) && md_dns_matches(domain, s->server_hostname))) {
+            if ((mc->match_mode == MD_MATCH_ALL &&
+                 ap_matches_request_vhost(&r, domain, s->port))
+                || (((mc->match_mode == MD_MATCH_SERVERNAMES) || md_dns_is_wildcard(p, domain)) &&
+                    md_dns_matches(domain, s->server_hostname))) {
                 /* Create a unique md_srv_conf_t record for this server, if there is none yet */
                 sc = md_config_get_unique(s, p);
                 if (!sc->assigned) sc->assigned = apr_array_make(p, 2, sizeof(md_t*));
-
+                if (sc->assigned->nelts == 1 && mc->match_mode == MD_MATCH_SERVERNAMES) {
+                    /* there is already an MD assigned for this server. But in
+                     * this match mode, wildcard matches are pre-empted by non-wildcards */
+                    int existing_wild = md_is_wild_match(
+                          APR_ARRAY_IDX(sc->assigned, 0, const md_t*)->domains,
+                          s->server_hostname);
+                    if (!existing_wild && md_dns_is_wildcard(p, domain))
+                        continue;  /* do not add */
+                    if (existing_wild && !md_dns_is_wildcard(p, domain))
+                        sc->assigned->nelts = 0;  /* overwrite existing */
+                }
                 APR_ARRAY_PUSH(sc->assigned, md_t*) = md;
                 ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, base_server, APLOGNO(10041)
-                             "Server %s:%d matches md %s (config %s) for domain %s, "
-                             "has now %d MDs",
+                             "Server %s:%d matches md %s (config %s, match-mode=%d) "
+                             "for domain %s, has now %d MDs",
                              s->server_hostname, s->port, md->name, sc->name,
-                             domain, (int)sc->assigned->nelts);
+                             mc->match_mode, domain, (int)sc->assigned->nelts);
 
                 if (md->contacts && md->contacts->nelts > 0) {
                     /* set explicitly */
@@ -670,17 +688,19 @@ static apr_status_t merge_mds_with_conf(md_mod_conf_t *mc, apr_pool_t *p,
         md = APR_ARRAY_IDX(mc->mds, i, md_t*);
         merge_srv_config(md, base_conf, p);
 
-        /* Check that we have no overlap with the MDs already completed */
-        for (j = 0; j < i; ++j) {
-            omd = APR_ARRAY_IDX(mc->mds, j, md_t*);
-            if ((domain = md_common_name(md, omd)) != NULL) {
-                ap_log_error(APLOG_MARK, APLOG_ERR, 0, base_server, APLOGNO(10038)
-                             "two Managed Domains have an overlap in domain '%s'"
-                             ", first definition in %s(line %d), second in %s(line %d)",
-                             domain, md->defn_name, md->defn_line_number,
-                             omd->defn_name, omd->defn_line_number);
-                return APR_EINVAL;
-            }
+        if (mc->match_mode == MD_MATCH_ALL) {
+          /* Check that we have no overlap with the MDs already completed */
+          for (j = 0; j < i; ++j) {
+              omd = APR_ARRAY_IDX(mc->mds, j, md_t*);
+              if ((domain = md_common_name(md, omd)) != NULL) {
+                  ap_log_error(APLOG_MARK, APLOG_ERR, 0, base_server, APLOGNO(10038)
+                               "two Managed Domains have an overlap in domain '%s'"
+                               ", first definition in %s(line %d), second in %s(line %d)",
+                               domain, md->defn_name, md->defn_line_number,
+                               omd->defn_name, omd->defn_line_number);
+                  return APR_EINVAL;
+              }
+          }
         }
 
         if (md->cert_files && md->cert_files->nelts) {
@@ -931,7 +951,8 @@ static apr_status_t md_post_config_before_ssl(apr_pool_t *p, apr_pool_t *plog,
     /*5*/
     md_reg_load_stagings(mc->reg, mc->mds, mc->env, p);
 leave:
-    md_reg_unlock_global(mc->reg, ptemp);
+    if (mc->reg)
+        md_reg_unlock_global(mc->reg, ptemp);
     return rv;
 }
 
@@ -1242,7 +1263,7 @@ static int md_add_cert_files(server_rec *s, apr_pool_t *p,
                          s->server_hostname);
         }
         ap_log_error(APLOG_MARK, APLOG_TRACE1, 0, s,
-                     "host '%s' is covered by a Managed Domaina and "
+                     "host '%s' is covered by a Managed Domain and "
                      "is being provided with %d key/certificate files.",
                      s->server_hostname, md_cert_files->nelts);
         apr_array_cat(cert_files, md_cert_files);
@@ -1271,17 +1292,59 @@ static int md_add_fallback_cert_files(server_rec *s, apr_pool_t *p,
     return DECLINED;
 }
 
+static int md_get_challenge_cert(conn_rec *c, const char *servername,
+                                 md_srv_conf_t *sc,
+                                 md_pkey_type_t key_type,
+                                 const char **pcert_pem,
+                                 const char **pkey_pem)
+{
+    apr_status_t rv = APR_ENOENT;
+    int i;
+    char *cert_name, *pkey_name;
+    const char *cert_pem, *key_pem;
+    md_store_t *store = md_reg_store_get(sc->mc->reg);
+    md_pkey_spec_t *key_spec;
+
+    for (i = 0; i < md_pkeys_spec_count(sc->pks); i++) {
+        key_spec = md_pkeys_spec_get(sc->pks, i);
+        if (key_spec->type != key_type)
+          continue;
+
+        tls_alpn01_fnames(c->pool, key_spec, &pkey_name, &cert_name);
+
+        rv = md_store_load(store, MD_SG_CHALLENGES, servername, cert_name, MD_SV_TEXT,
+                           (void**)&cert_pem, c->pool);
+        ap_log_cerror(APLOG_MARK, APLOG_TRACE1, rv, c,
+                      "Load challenge: cert %s", cert_name);
+        if (APR_STATUS_IS_ENOENT(rv)) continue;
+        if (APR_SUCCESS != rv) goto cleanup;
+
+        rv = md_store_load(store, MD_SG_CHALLENGES, servername, pkey_name, MD_SV_TEXT,
+                           (void**)&key_pem, c->pool);
+        ap_log_cerror(APLOG_MARK, APLOG_TRACE1, rv, c,
+                      "Load challenge: key %s", pkey_name);
+        if (APR_STATUS_IS_ENOENT(rv)) continue;
+        if (APR_SUCCESS != rv) goto cleanup;
+
+        ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, c,
+                      "Found challenge: cert %s, key %s for %s",
+                      cert_name, pkey_name, servername);
+        *pcert_pem = cert_pem;
+        *pkey_pem = key_pem;
+        return OK;
+    }
+cleanup:
+    return DECLINED;
+}
+
 static int md_answer_challenge(conn_rec *c, const char *servername,
                                const char **pcert_pem, const char **pkey_pem)
 {
     const char *protocol;
     int hook_rv = DECLINED;
-    apr_status_t rv = APR_ENOENT;
     md_srv_conf_t *sc;
-    md_store_t *store;
-    char *cert_name, *pkey_name;
-    const char *cert_pem, *key_pem;
-    int i;
+
+    *pcert_pem = *pkey_pem = NULL;
 
     if (!servername
         || !(protocol = md_protocol_get(c))
@@ -1293,33 +1356,31 @@ static int md_answer_challenge(conn_rec *c, const char *servername,
 
     ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, c,
                   "Answer challenge[tls-alpn-01] for %s", servername);
-    store = md_reg_store_get(sc->mc->reg);
 
-    for (i = 0; i < md_pkeys_spec_count( sc->pks ); i++) {
-        tls_alpn01_fnames(c->pool, md_pkeys_spec_get(sc->pks,i),
-                          &pkey_name, &cert_name);
-
-        rv = md_store_load(store, MD_SG_CHALLENGES, servername, cert_name, MD_SV_TEXT,
-                           (void**)&cert_pem, c->pool);
-        if (APR_STATUS_IS_ENOENT(rv)) continue;
-        if (APR_SUCCESS != rv) goto cleanup;
-
-        rv = md_store_load(store, MD_SG_CHALLENGES, servername, pkey_name, MD_SV_TEXT,
-                           (void**)&key_pem, c->pool);
-        if (APR_STATUS_IS_ENOENT(rv)) continue;
-        if (APR_SUCCESS != rv) goto cleanup;
-
-        ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, c,
-                      "Found challenge cert %s, key %s for %s",
-                      cert_name, pkey_name, servername);
-        *pcert_pem = cert_pem;
-        *pkey_pem = key_pem;
-        hook_rv = OK;
-        break;
-    }
+    /* A challenge for TLS-ALPN-01 used to have a single certificate,
+     * overriding the single fallback certificate already installed in
+     * the connections SSL* instance.
+     * Since the addition of `MDPrivateKeys`, there can be more than one,
+     * but the server API for a challenge cert can return only one. This
+     * is a short coming of the API.
+     * This means we cannot override all fallback certificates present, just
+     * a single one. If there is an RSA cert in fallback, we need to override
+     * that, because the ACME server has a preference for that (at least LE
+     * has). So we look for an RSA challenge cert first.
+     * The fallback is an EC cert and that works since without RSA challenges,
+     * there should also be no RSA fallbacks.
+     * Bit of a mess. */
+    hook_rv = md_get_challenge_cert(c, servername, sc, MD_PKEY_TYPE_DEFAULT,
+                                    pcert_pem, pkey_pem);
+    if (hook_rv == DECLINED)
+      hook_rv = md_get_challenge_cert(c, servername, sc, MD_PKEY_TYPE_RSA,
+                                      pcert_pem, pkey_pem);
+    if (hook_rv == DECLINED)
+      hook_rv = md_get_challenge_cert(c, servername, sc, MD_PKEY_TYPE_EC,
+                                      pcert_pem, pkey_pem);
 
     if (DECLINED == hook_rv) {
-        ap_log_cerror(APLOG_MARK, APLOG_INFO, rv, c, APLOGNO(10080)
+        ap_log_cerror(APLOG_MARK, APLOG_INFO, 0, c, APLOGNO(10080)
                       "%s: unknown tls-alpn-01 challenge host", servername);
     }
 
@@ -1500,7 +1561,7 @@ static void md_hooks(apr_pool_t *pool)
     /* Run once after configuration is set, before mod_ssl.
      * Run again after mod_ssl is done.
      */
-    ap_hook_post_config(md_post_config_before_ssl, NULL, mod_ssl, APR_HOOK_MIDDLE);
+    ap_hook_post_config(md_post_config_before_ssl, NULL, mod_ssl, APR_HOOK_FIRST);
     ap_hook_post_config(md_post_config_after_ssl, mod_ssl, mod_wd, APR_HOOK_LAST);
 
     /* Run once after a child process has been created.

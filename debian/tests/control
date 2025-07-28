@@ -1,13 +1,24 @@
 Tests: run-test-suite
 Features: no-build-needed
 Restrictions: allow-stderr isolation-container breaks-testbed needs-root
-Depends: build-essential, apache2, apache2-dev,
-         libwww-perl, libnet-ssleay-perl, libanyevent-perl, libdatetime-perl,
-         libhtml-parser-perl, libtime-hires-perl, libcrypt-ssleay-perl,
-         libhttp-dav-perl, libprotocol-http2-perl, libfcgi-perl,
-         libpcre2-dev, perl-doc
+Depends: apache2,
+         apache2-dev,
+         build-essential,
+         libanyevent-perl,
+         libanyevent-websocket-client-perl,
+         libcrypt-ssleay-perl,
+         libdatetime-perl,
+         libfcgi-perl,
+         libhtml-parser-perl,
+         libhttp-dav-perl,
+         libnet-ssleay-perl,
+         libpcre2-dev,
+         libprotocol-http2-perl,
+         libtime-hires-perl,
+         libwww-perl,
+         perl-doc
 
-Tests: duplicate-module-load, default-mods
+Tests: default-mods, duplicate-module-load
 Restrictions: allow-stderr, needs-root
 Depends: apache2
 
@@ -21,9 +32,22 @@ Depends: apache2, curl, expect, ssl-cert
 
 Tests: check-http2
 Restrictions: needs-root allow-stderr breaks-testbed
-Depends: apache2, curl, ssl-cert, nghttp2-client
+Depends: apache2, curl, nghttp2-client, ssl-cert
 
 Tests: chroot
 Features: no-build-needed
 Restrictions: needs-root allow-stderr breaks-testbed
-Depends: apache2, wget, dpkg-dev, gcc
+Depends: dpkg-dev, apache2, gcc, wget
+
+Tests: uwsgi
+Restrictions: allow-stderr, needs-root
+Depends: apache2,
+         netcat-openbsd | netcat-traditional,
+         rsync,
+         uwsgi,
+         uwsgi-plugin-python3,
+         wget
+
+Tests: CVE-2023-25690
+Restrictions: allow-stderr, isolation-container, needs-root
+Depends: apache2, curl, rsync, wget

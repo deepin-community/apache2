@@ -2,11 +2,11 @@ Description: Fix up FHS file locations for apache2 droppings.
 Forwarded: not-needed
 Author: Adam Conrad <adconrad@0c3.net>
 Reviewed-By: Yadd <yadd@debian.org>
-Last-Update: 2023-01-18
+Last-Update: 2023-10-19
 
 --- a/configure
 +++ b/configure
-@@ -42075,13 +42075,13 @@
+@@ -42302,13 +42302,13 @@
  ap_prefix="${ap_cur}"
  
  
@@ -25,7 +25,7 @@ Last-Update: 2023-01-18
  perlbin=`$ac_aux_dir/PrintPath perl`
 --- a/configure.in
 +++ b/configure.in
-@@ -901,11 +901,11 @@
+@@ -934,11 +934,11 @@
  echo $MODLIST | $AWK -f $srcdir/build/build-modules-c.awk > modules.c
  
  APR_EXPAND_VAR(ap_prefix, $prefix)

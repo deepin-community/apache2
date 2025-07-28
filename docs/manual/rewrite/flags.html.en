@@ -57,6 +57,9 @@ providing detailed explanations and examples.</p>
 <li><img alt="" src="../images/down.gif" /> <a href="#flag_r">R|redirect</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#flag_s">S|skip</a></li>
 <li><img alt="" src="../images/down.gif" /> <a href="#flag_t">T|type</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#flag_unsafe_allow_3f">UnsafeAllow3F</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#flag_unsafe_prefix_stat">UnsafePrefixStat</a></li>
+<li><img alt="" src="../images/down.gif" /> <a href="#flag_unc">UNC</a></li>
 </ul><h3>See also</h3><ul class="seealso"><li><a href="../mod/mod_rewrite.html">Module documentation</a></li><li><a href="intro.html">mod_rewrite introduction</a></li><li><a href="remapping.html">Redirection and remapping</a></li><li><a href="access.html">Controlling access</a></li><li><a href="vhosts.html">Virtual hosts</a></li><li><a href="proxy.html">Proxying</a></li><li><a href="rewritemap.html">Using RewriteMap</a></li><li><a href="advanced.html">Advanced techniques</a></li><li><a href="avoid.html">When not to use mod_rewrite</a></li><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
@@ -92,6 +95,10 @@ characters before applying the transformation.</p>
 so backreferences are unescaped at the time they are applied.
 Using the B flag, non-alphanumeric characters in backreferences
 will be escaped. For example, consider the rule:</p>
+
+<p>For similar escaping of server-variables, see
+    the "escape" <a href="#mapfunc">mapping-function</a></p>
+
 
 <pre class="prettyprint lang-config">RewriteRule "^search/(.*)$" "/search.php?term=$1"</pre>
 
@@ -130,8 +137,8 @@ and the space must not be the last character in the list.</p>
 RewriteRule "^search/(.*)$" "/search.php?term=$1" "[B= ?]"</pre>
 
 
-<p>To limit the characters escaped this way, see <a href="flag_bne">flag_bne</a>
-and <a href="flag_bctls">flag_bctls</a></p>
+<p>To limit the characters escaped this way, see <a href="#flag_bne">#flag_bne</a>
+        and <a href="#flag_bctls">#flag_bctls</a></p>
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
 <h2><a name="flag_bnp" id="flag_bnp">BNP|backrefnoplus (don't escape space to +)</a></h2>
@@ -584,11 +591,17 @@ client undue influence.</p>
 
 <div class="warning">
 <h3>Performance warning</h3>
-<p>Using this flag triggers the use of <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code>, without handling of persistent connections. This
-means the performance of your proxy will be better if you set it up with <code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code> or
-<code class="directive"><a href="../mod/mod_proxy.html#proxypassmatch">ProxyPassMatch</a></code></p>
-<p>This is because this flag triggers the use of the default worker, which does not handle connection pooling/reuse.</p>
-<p>Avoid using this flag and prefer those directives, whenever you can.</p>
+<p>Using this flag triggers the use of <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code>, without
+handling of persistent connections as the default worker is used in this case,
+which does not handle connection pooling/reuse.</p>
+<p>In order to use persistent connections you need to setup a
+<code class="directive"><a href="../mod/mod_proxy.html#proxy">Proxy</a></code> block at least for the scheme
+and host part of the target URL containing a
+<code class="directive"><a href="../mod/mod_proxy.html#proxyset">ProxySet</a></code> directive where you e.g. set
+a timeout.</p>
+<p>If you set it up with <code class="directive"><a href="../mod/mod_proxy.html#proxypass">ProxyPass</a></code> or
+<code class="directive"><a href="../mod/mod_proxy.html#proxypassmatch">ProxyPassMatch</a></code> persistent connections
+will be used automatically.</p>
 </div>
 
 <p>Note: <code class="module"><a href="../mod/mod_proxy.html">mod_proxy</a></code> must be enabled in order
@@ -810,7 +823,32 @@ otherwise the MIME-type set with this flag is lost due to an internal
 re-processing (including subsequent rounds of mod_rewrite processing).
 The <code>L</code> flag can be useful in this context to end the
 <em>current</em> round of mod_rewrite processing.</p>
+</div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="section">
+<h2><a name="flag_unsafe_allow_3f" id="flag_unsafe_allow_3f">UnsafeAllow3F</a></h2>
+    <p> Setting this flag is required to allow a rewrite to continue If the
+    HTTP request being written has an encoded question mark, '%3f', and the
+    rewritten result has a '?' in the substiution.  This protects from a malicious
+    URL taking advantage of a capture and re-substitution of the encoded
+    question mark.</p>
+</div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="section">
+<h2><a name="flag_unsafe_prefix_stat" id="flag_unsafe_prefix_stat">UnsafePrefixStat</a></h2>
+    <p> Setting this flag is required in server-scoped substitutions
+    start with a variable or backreference and resolve to a filesystem path.
+    These substitutions are not prefixed with the document root.
+    This protects from a malicious URL causing the expanded substitution to
+    map to an unexpected filesystem location.</p>
 
+    <p>Available in Apache HTTP Server 2.4.60 and later.</p>
+</div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
+<div class="section">
+<h2><a name="flag_unc" id="flag_unc">UNC</a></h2>
+    <p> Setting this flag prevents the merging of multiple leading slashes,
+    as used in Windows UNC paths.  The flag is not necessary when the rules
+    substitution starts with multiple literal slashes.</p>
+
+    <p>Available in Apache HTTP Server 2.4.62 and later.</p>
 </div></div>
 <div class="bottomlang">
 <p><span>Available Languages: </span><a href="../en/rewrite/flags.html" title="English">&nbsp;en&nbsp;</a> |
@@ -833,7 +871,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/2.4/rewrite/flags.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2023 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2025 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

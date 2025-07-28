@@ -1147,10 +1147,21 @@ static const char *file_func(ap_expr_eval_ctx_t *ctx, const void *data,
     return buf;
 }
 
+static apr_status_t stat_check(ap_expr_eval_ctx_t *ctx, const void *data, const char *arg)
+{
+    apr_status_t rv = APR_SUCCESS;
+    if (APR_SUCCESS != (rv = ap_stat_check(arg, ctx->p))) {
+        *ctx->err = apr_psprintf(ctx->p, "stat of %s not allowed", arg);
+    }
+    return rv;
+}
 static const char *filesize_func(ap_expr_eval_ctx_t *ctx, const void *data,
                                   char *arg)
 {
     apr_finfo_t sb;
+    if (APR_SUCCESS != stat_check(ctx, data, arg)) {
+        return "";
+    }
     if (apr_stat(&sb, arg, APR_FINFO_MIN, ctx->p) == APR_SUCCESS
         && sb.filetype == APR_REG && sb.size > 0)
         return apr_psprintf(ctx->p, "%" APR_OFF_T_FMT, sb.size);
@@ -1185,6 +1196,9 @@ static int op_file_min(ap_expr_eval_ctx_t *ctx, const void *data, const char *ar
 {
     apr_finfo_t sb;
     const char *name = (const char *)data;
+    if (APR_SUCCESS != stat_check(ctx, data, arg)) {
+        return FALSE;
+    }
     if (apr_stat(&sb, arg, APR_FINFO_MIN, ctx->p) != APR_SUCCESS)
         return FALSE;
     switch (name[0]) {
@@ -1206,6 +1220,9 @@ static int op_file_link(ap_expr_eval_ctx_t *ctx, const void *data, const char *a
 {
 #if !defined(OS2)
     apr_finfo_t sb;
+    if (APR_SUCCESS != stat_check(ctx, data, arg)) {
+        return FALSE;
+    }
     if (apr_stat(&sb, arg, APR_FINFO_MIN | APR_FINFO_LINK, ctx->p) == APR_SUCCESS
         && sb.filetype == APR_LNK) {
         return TRUE;
@@ -1217,6 +1234,9 @@ static int op_file_link(ap_expr_eval_ctx_t *ctx, const void *data, const char *a
 static int op_file_xbit(ap_expr_eval_ctx_t *ctx, const void *data, const char *arg)
 {
     apr_finfo_t sb;
+    if (APR_SUCCESS != stat_check(ctx, data, arg)) {
+        return FALSE;
+    }
     if (apr_stat(&sb, arg, APR_FINFO_PROT| APR_FINFO_LINK, ctx->p) == APR_SUCCESS
         && (sb.protection & (APR_UEXECUTE | APR_GEXECUTE | APR_WEXECUTE))) {
         return TRUE;
@@ -1253,6 +1273,9 @@ static int op_file_subr(ap_expr_eval_ctx_t *ctx, const void *data, const char *a
     request_rec *rsub, *r = ctx->r;
     if (!r)
         return FALSE;
+    if (APR_SUCCESS != stat_check(ctx, data, arg)) {
+        return FALSE;
+    }
     rsub = ap_sub_req_lookup_file(arg, r, NULL);
     if (rsub->status < 300 &&
         /* double-check that file exists since default result is 200 */
@@ -1271,7 +1294,7 @@ static int op_file_subr(ap_expr_eval_ctx_t *ctx, const void *data, const char *a
 APR_DECLARE_OPTIONAL_FN(int, http2_is_h2, (conn_rec *));
 static APR_OPTIONAL_FN_TYPE(http2_is_h2) *is_http2 = NULL;
 
-static const char *conn_var_names[] = {
+static const char *const conn_var_names[] = {
     "HTTPS",                    /*  0 */
     "IPV6",                     /*  1 */
     "CONN_LOG_ID",              /*  2 */
@@ -1321,7 +1344,7 @@ static const char *conn_var_fn(ap_expr_eval_ctx_t *ctx, const void *data)
     }
 }
 
-static const char *request_var_names[] = {
+static const char *const request_var_names[] = {
     "REQUEST_METHOD",           /*  0 */
     "REQUEST_SCHEME",           /*  1 */
     "REQUEST_URI",              /*  2 */
@@ -1449,7 +1472,7 @@ static const char *request_var_fn(ap_expr_eval_ctx_t *ctx, const void *data)
     }
 }
 
-static const char *req_header_var_names[] = {
+static const char *const req_header_var_names[] = {
     "HTTP_USER_AGENT",       /* 0 */
     "HTTP_PROXY_CONNECTION", /* 1 */
     "HTTP_REFERER",          /* 2 */
@@ -1460,7 +1483,7 @@ static const char *req_header_var_names[] = {
     NULL
 };
 
-static const char *req_header_header_names[] = {
+static const char *const req_header_header_names[] = {
     "User-Agent",
     "Proxy-Connection",
     "Referer",
@@ -1472,7 +1495,7 @@ static const char *req_header_header_names[] = {
 
 static const char *req_header_var_fn(ap_expr_eval_ctx_t *ctx, const void *data)
 {
-    const char **varname = (const char **)data;
+    const char **const varname = (const char **)data;
     int index = (varname - req_header_var_names);
     const char *name;
 
@@ -1490,7 +1513,7 @@ static const char *req_header_var_fn(ap_expr_eval_ctx_t *ctx, const void *data)
     return apr_table_get(ctx->r->headers_in, name);
 }
 
-static const char *misc_var_names[] = {
+static const char *const misc_var_names[] = {
     "TIME_YEAR",        /* 0 */
     "TIME_MON",         /* 1 */
     "TIME_DAY",         /* 2 */
@@ -1647,7 +1670,7 @@ struct expr_provider_single {
 
 struct expr_provider_multi {
     const void *func;
-    const char **names;
+    const char *const *names;
 };
 
 static const struct expr_provider_multi var_providers[] = {
@@ -1716,7 +1739,7 @@ static int core_expr_lookup(ap_expr_lookup_parms *parms)
     case AP_EXPR_FUNC_VAR: {
             const struct expr_provider_multi *prov = var_providers;
             while (prov->func) {
-                const char **name = prov->names;
+                const char *const *name = prov->names;
                 while (*name) {
                     if (ap_cstr_casecmp(*name, parms->name) == 0) {
                         *parms->func = prov->func;

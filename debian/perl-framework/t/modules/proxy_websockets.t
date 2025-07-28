@@ -6,7 +6,10 @@ use Apache::TestRequest;
 use Apache::TestUtil;
 use Apache::TestConfig ();
 
-my $total_tests = 1;
+# not reliable, hangs for some people:
+# my @test_cases = ( "ping0", "ping1" x 10, "ping2" x 100, "ping3" x 1024, "ping4" x 4096,  "sendquit");
+my @test_cases = ( "ping0", "ping1" x 10, "ping2" x 100, "ping3" x 1024, "sendquit");
+my $total_tests = 2;
 
 plan tests => $total_tests, need 'AnyEvent::WebSocket::Client',
     need_module('proxy_http', 'lua'), need_min_apache_version('2.4.47');
@@ -21,7 +24,8 @@ my $client = AnyEvent::WebSocket::Client->new(timeout => 5);
 
 my $quit_program = AnyEvent->condvar;
 
-my $pingok = 0;
+my $responses = 0;
+my $surprised = 0;
 
 $client->connect("ws://$hostport/proxy/wsoc")->cb(sub {
   our $connection = eval { shift->recv };
@@ -33,21 +37,45 @@ $client->connect("ws://$hostport/proxy/wsoc")->cb(sub {
     return;
   }
 
-  $connection->send('ping');
 
+  # AnyEvent::WebSocket::Connection does not pass the PONG message down to the callback
+  # my $actualpingmsg = AnyEvent::WebSocket::Message->new(opcode => 0x09, body => "xxx");
+  # $connection->send($actualpingmsg);
+
+  foreach (@test_cases){ 
+    $connection->send($_);
+  }
+
+  $connection->on(finish => sub {
+    t_debug("finish");
+  });
+  
   # recieve message from the websocket...
   $connection->on(each_message => sub {
     # $connection is the same connection object
     # $message isa AnyEvent::WebSocket::Message
     my($connection, $message) = @_;
-    t_debug("wsoc msg received: " . $message->body);
-    if ("ping" eq $message->body) { 
-      $pingok = 1;
+    $responses++;
+    t_debug("wsoc msg received: " . substr($message->body, 0, 5). " opcode " . $message->opcode);
+    if ("sendquit" eq $message->body) { 
+      $connection->send('quit');
+      t_debug("closing");
+      $connection->close; # doesn't seem to close TCP.
+      $quit_program->send();
     }
-    $connection->send('quit');
-    $quit_program->send();
+    elsif ($message->body =~ /^ping(\d)/) { 
+      my $offset = $1;
+      if ($message->body ne $test_cases[$offset]) { 
+          $surprised++;
+      }
+    }
+    else { 
+        $surprised++;
+    }
   });
+
 });
 
 $quit_program->recv;
-ok t_cmp($pingok, 1);
+ok t_cmp($surprised, 0);
+ok t_cmp($responses, scalar(@test_cases) );

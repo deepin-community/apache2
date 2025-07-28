@@ -17,7 +17,7 @@ MODULE_DIR := /usr/lib/apache2/modules/
 API := $(shell perl -ne 'print $$1 if m/define\s+MODULE_MAGIC_NUMBER_MAJOR\s+?(.*)$$/' < include/ap_mmn.h)
 OPENSSL := openssl1.1
 AP2_CFLAGS = -pipe $(CFLAGS)
-AP2_LDFLAGS = -Wl,--as-needed $(LDFLAGS) -lpcre2-8 -L/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0
+AP2_LDFLAGS = -Wl,--as-needed $(LDFLAGS)
 AP2_CPPFLAGS = -DPLATFORM='\"$(LSB_RELEASE)\"' -DBUILD_DATETIME='\"$(BUILD_DATETIME)\"' $(CPPFLAGS)
 AP2_LTFLAGS = --no-silent
 
@@ -180,7 +180,7 @@ override_dh_installdocs-indep:
 	dh_installdocs -i
 
 override_dh_installdocs-arch:
-	dh_installdocs --link-doc=apache2 -papache2 -plibapache2-mod-md -plibapache2-mod-proxy-uwsgi
+	dh_installdocs --link-doc=apache2 -papache2
 	dh_installdocs --link-doc=apache2-dev -papache2-ssl-dev
 	dh_installdocs -a
 

@@ -38,59 +38,6 @@ static void ssl_configure_env(request_rec *r, SSLConnRec *sslconn);
 static int ssl_find_vhost(void *servername, conn_rec *c, server_rec *s);
 #endif
 
-#define SWITCH_STATUS_LINE "HTTP/1.1 101 Switching Protocols"
-#define UPGRADE_HEADER "Upgrade: TLS/1.0, HTTP/1.1"
-#define CONNECTION_HEADER "Connection: Upgrade"
-
-/* Perform an upgrade-to-TLS for the given request, per RFC 2817. */
-static apr_status_t upgrade_connection(request_rec *r)
-{
-    struct conn_rec *conn = r->connection;
-    apr_bucket_brigade *bb;
-    SSLConnRec *sslconn;
-    apr_status_t rv;
-    SSL *ssl;
-
-    ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(02028)
-                  "upgrading connection to TLS");
-
-    bb = apr_brigade_create(r->pool, conn->bucket_alloc);
-
-    rv = ap_fputs(conn->output_filters, bb, SWITCH_STATUS_LINE CRLF
-                  UPGRADE_HEADER CRLF CONNECTION_HEADER CRLF CRLF);
-    if (rv == APR_SUCCESS) {
-        APR_BRIGADE_INSERT_TAIL(bb,
-                                apr_bucket_flush_create(conn->bucket_alloc));
-        rv = ap_pass_brigade(conn->output_filters, bb);
-    }
-
-    if (rv) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02029)
-                      "failed to send 101 interim response for connection "
-                      "upgrade");
-        return rv;
-    }
-
-    ssl_init_ssl_connection(conn, r);
-
-    sslconn = myConnConfig(conn);
-    ssl = sslconn->ssl;
-
-    /* Perform initial SSL handshake. */
-    SSL_set_accept_state(ssl);
-    SSL_do_handshake(ssl);
-
-    if (!SSL_is_init_finished(ssl)) {
-        ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02030)
-                      "TLS upgrade handshake failed");
-        ssl_log_ssl_error(SSLLOG_MARK, APLOG_ERR, r->server);
-
-        return APR_ECONNABORTED;
-    }
-
-    return APR_SUCCESS;
-}
-
 /* Perform a speculative (and non-blocking) read from the connection
  * filters for the given request, to determine whether there is any
  * pending data to read.  Return non-zero if there is, else zero. */
@@ -270,39 +217,16 @@ int ssl_hook_ReadReq(request_rec *r)
 {
     SSLSrvConfigRec *sc = mySrvConfig(r->server);
     SSLConnRec *sslconn;
-    const char *upgrade;
 #ifdef HAVE_TLSEXT
     const char *servername;
 #endif
     SSL *ssl;
-
-    /* Perform TLS upgrade here if "SSLEngine optional" is configured,
-     * SSL is not already set up for this connection, and the client
-     * has sent a suitable Upgrade header. */
-    if (sc->enabled == SSL_ENABLED_OPTIONAL && !myConnConfig(r->connection)
-        && (upgrade = apr_table_get(r->headers_in, "Upgrade")) != NULL
-        && ap_find_token(r->pool, upgrade, "TLS/1.0")) {
-        if (upgrade_connection(r)) {
-            return AP_FILTER_ERROR;
-        }
-    }
 
     /* If we are on a slave connection, we do not expect to have an SSLConnRec,
      * but our master connection might. */
     sslconn = myConnConfig(r->connection);
     if (!(sslconn && sslconn->ssl) && r->connection->master) {
         sslconn = myConnConfig(r->connection->master);
-    }
-    
-    /* If "SSLEngine optional" is configured, this is not an SSL
-     * connection, and this isn't a subrequest, send an Upgrade
-     * response header.  Note this must happen before map_to_storage
-     * and OPTIONS * request processing is completed.
-     */
-    if (sc->enabled == SSL_ENABLED_OPTIONAL && !(sslconn && sslconn->ssl)
-        && !r->main) {
-        apr_table_setn(r->headers_out, "Upgrade", "TLS/1.0, HTTP/1.1");
-        apr_table_mergen(r->headers_out, "Connection", "upgrade");
     }
 
     if (!sslconn) {
@@ -371,19 +295,6 @@ int ssl_hook_ReadReq(request_rec *r)
                             " provided in HTTP request", servername);
                 return HTTP_BAD_REQUEST;
             }
-            if (r->server != handshakeserver 
-                && !ssl_server_compatible(sslconn->server, r->server)) {
-                /* 
-                 * The request does not select the virtual host that was
-                 * selected by the SNI and its SSL parameters are different
-                 */
-                
-                ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02032)
-                             "Hostname %s provided via SNI and hostname %s provided"
-                             " via HTTP have no compatible SSL setup",
-                             servername, r->hostname);
-                return HTTP_MISDIRECTED_REQUEST;
-            }
         }
         else if (((sc->strict_sni_vhost_check == SSL_ENABLED_TRUE)
                   || hssc->strict_sni_vhost_check == SSL_ENABLED_TRUE)
@@ -403,6 +314,21 @@ int ssl_hook_ReadReq(request_rec *r)
                            "hostname using Server Name Indication (SNI), "
                            "which is required to access this server.<br />\n");
             return HTTP_FORBIDDEN;
+        }
+        if (r->server != handshakeserver
+            && !ssl_server_compatible(sslconn->server, r->server)) {
+            /*
+             * The request does not select the virtual host that was
+             * selected for handshaking and its SSL parameters are different
+             */
+
+            ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02032)
+                         "Hostname %s %s and hostname %s provided"
+                         " via HTTP have no compatible SSL setup",
+                         servername ? servername : handshakeserver->server_hostname,
+                         servername ? "provided via SNI" : "(default host as no SNI was provided)",
+                         r->hostname);
+            return HTTP_MISDIRECTED_REQUEST;
         }
     }
 #endif
@@ -992,7 +918,7 @@ static int ssl_hook_Access_classic(request_rec *r, SSLSrvConfigRec *sc, SSLDirCo
 
             /* Toggle the renegotiation state to allow the new
              * handshake to proceed. */
-            sslconn->reneg_state = RENEG_ALLOW;
+            modssl_set_reneg_state(sslconn, RENEG_ALLOW);
 
             SSL_renegotiate(ssl);
             SSL_do_handshake(ssl);
@@ -1019,7 +945,7 @@ static int ssl_hook_Access_classic(request_rec *r, SSLSrvConfigRec *sc, SSLDirCo
              */
             SSL_peek(ssl, peekbuf, 0);
 
-            sslconn->reneg_state = RENEG_REJECT;
+            modssl_set_reneg_state(sslconn, RENEG_REJECT);
 
             if (!SSL_is_init_finished(ssl)) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02261)
@@ -1078,7 +1004,7 @@ static int ssl_hook_Access_modern(request_rec *r, SSLSrvConfigRec *sc, SSLDirCon
         (sc->server->auth.verify_mode != SSL_CVERIFY_UNSET)) {
         int vmode_inplace, vmode_needed;
         int change_vmode = FALSE;
-        int old_state, n, rc;
+        int n, rc;
 
         vmode_inplace = SSL_get_verify_mode(ssl);
         vmode_needed = SSL_VERIFY_NONE;
@@ -1180,8 +1106,6 @@ static int ssl_hook_Access_modern(request_rec *r, SSLSrvConfigRec *sc, SSLDirCon
                 return HTTP_FORBIDDEN;
             }
             
-            old_state = sslconn->reneg_state;
-            sslconn->reneg_state = RENEG_ALLOW;
             modssl_set_app_data2(ssl, r);
 
             SSL_do_handshake(ssl);
@@ -1191,7 +1115,6 @@ static int ssl_hook_Access_modern(request_rec *r, SSLSrvConfigRec *sc, SSLDirCon
              */
             SSL_peek(ssl, peekbuf, 0);
 
-            sslconn->reneg_state = old_state;
             modssl_set_app_data2(ssl, NULL);
 
             /*
@@ -1239,16 +1162,6 @@ int ssl_hook_Access(request_rec *r)
      * Support for SSLRequireSSL directive
      */
     if (dc->bSSLRequired && !ssl) {
-        if ((sc->enabled == SSL_ENABLED_OPTIONAL) && !r->connection->master) {
-            /* This vhost was configured for optional SSL, just tell the
-             * client that we need to upgrade.
-             */
-            apr_table_setn(r->err_headers_out, "Upgrade", "TLS/1.0, HTTP/1.1");
-            apr_table_setn(r->err_headers_out, "Connection", "Upgrade");
-
-            return HTTP_UPGRADE_REQUIRED;
-        }
-
         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02219)
                       "access to %s failed, reason: %s",
                       r->filename, "SSL connection required");
@@ -2263,8 +2176,8 @@ static void log_tracing_state(const SSL *ssl, conn_rec *c,
 /*
  * This callback function is executed while OpenSSL processes the SSL
  * handshake and does SSL record layer stuff.  It's used to trap
- * client-initiated renegotiations, and for dumping everything to the
- * log.
+ * client-initiated renegotiations (where SSL_OP_NO_RENEGOTIATION is
+ * not available), and for dumping everything to the log.
  */
 void ssl_callback_Info(const SSL *ssl, int where, int rc)
 {
@@ -2276,14 +2189,12 @@ void ssl_callback_Info(const SSL *ssl, int where, int rc)
         return;
     }
 
-    /* With TLS 1.3 this callback may be called multiple times on the first
-     * negotiation, so the below logic to detect renegotiations can't work.
-     * Fortunately renegotiations are forbidden starting with TLS 1.3, and
-     * this is enforced by OpenSSL so there's nothing to be done here.
-     */
-#if SSL_HAVE_PROTOCOL_TLSV1_3
-    if (SSL_version(ssl) < TLS1_3_VERSION)
-#endif
+#ifndef SSL_OP_NO_RENEGOTIATION
+    /* With OpenSSL < 1.1.1 (implying TLS v1.2 or earlier), this
+     * callback is used to block client-initiated renegotiation.  With
+     * TLSv1.3 it is unnecessary since renegotiation is forbidden at
+     * protocol level.  Otherwise (TLSv1.2 with OpenSSL >=1.1.1),
+     * SSL_OP_NO_RENEGOTIATION is used to block renegotiation. */
     {
         SSLConnRec *sslconn;
 
@@ -2308,6 +2219,7 @@ void ssl_callback_Info(const SSL *ssl, int where, int rc)
             sslconn->reneg_state = RENEG_REJECT;
         }
     }
+#endif
 
     s = mySrvFromConn(c);
     if (s && APLOGdebug(s)) {
@@ -2581,6 +2493,7 @@ static int ssl_find_vhost(void *servername, conn_rec *c, server_rec *s)
             sc->server->pks->service_unavailable : 0; 
         
         ap_update_child_status_from_server(c->sbh, SERVER_BUSY_READ, c, s);
+
         /*
          * There is one special filter callback, which is set
          * very early depending on the base_server's log level.
@@ -2588,16 +2501,7 @@ static int ssl_find_vhost(void *servername, conn_rec *c, server_rec *s)
          * (and the first vhost doesn't use APLOG_TRACE4), then
          * we need to set that callback here.
          */
-        if (APLOGtrace4(s)) {
-            BIO *rbio = SSL_get_rbio(ssl),
-                *wbio = SSL_get_wbio(ssl);
-            BIO_set_callback(rbio, ssl_io_data_cb);
-            BIO_set_callback_arg(rbio, (void *)ssl);
-            if (wbio && wbio != rbio) {
-                BIO_set_callback(wbio, ssl_io_data_cb);
-                BIO_set_callback_arg(wbio, (void *)ssl);
-            }
-        }
+        modssl_set_io_callbacks(ssl, c, s);
 
         return 1;
     }
