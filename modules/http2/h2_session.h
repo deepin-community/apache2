@@ -29,6 +29,7 @@
  */
 
 #include "h2.h"
+#include "h2_util.h"
 
 struct apr_thread_mutext_t;
 struct apr_thread_cond_t;
@@ -103,7 +104,8 @@ typedef struct h2_session {
     
     apr_size_t max_stream_count;    /* max number of open streams */
     apr_size_t max_stream_mem;      /* max buffer memory for a single stream */
-    
+    apr_size_t max_data_frame_len;  /* max amount of bytes for a single DATA frame */
+
     apr_size_t idle_frames;         /* number of rcvd frames that kept session in idle state */
     apr_interval_time_t idle_delay; /* Time we delay processing rcvd frames in idle state */
     
@@ -116,6 +118,8 @@ typedef struct h2_session {
     int input_flushed;              /* stream input was flushed */
     struct h2_iqueue *out_c1_blocked;  /* all streams with output blocked on c1 buffer full */
     struct h2_iqueue *ready_to_process;  /* all streams ready for processing */
+
+    h2_hd_scratch hd_scratch;
 
 } h2_session;
 
@@ -143,8 +147,11 @@ void h2_session_event(h2_session *session, h2_session_event_t ev,
  * error occurred.
  *
  * @param session the sessionm to process
+ * @param async if mpm is async
+ * @param pkeepalive on return, != 0 if connection to be put into keepalive
+ *                   behaviour and timouts
  */
-apr_status_t h2_session_process(h2_session *session, int async);
+apr_status_t h2_session_process(h2_session *session, int async, int *pkeepalive);
 
 /**
  * Last chance to do anything before the connection is closed.

@@ -1,3 +1,4 @@
+/etc/ufw/applications.d/apache2
 etc/apache2/conf-enabled
 etc/apache2/mods-enabled
 etc/apache2/sites-enabled

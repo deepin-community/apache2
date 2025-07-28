@@ -1,3 +1,164 @@
+apache2 (2.4.65-1) unstable; urgency=medium
+
+  * New upstream version 2.4.65 (Closes: CVE-2025-54090)
+  * Unfuzz patch
+
+ -- Yadd <yadd@debian.org>  Wed, 23 Jul 2025 16:05:45 +0200
+
+apache2 (2.4.64-2) unstable; urgency=medium
+
+  * Per RFC 8996 disable by default TLS 1.0 and TLS 1.1
+    (Closes: #943415)
+
+ -- Bastien Roucariès <rouca@debian.org>  Thu, 17 Jul 2025 18:03:42 +0200
+
+apache2 (2.4.64-1) unstable; urgency=medium
+
+  [ Yadd ]
+  * Add libanyevent-websocket-client-perl in test-suite dependencies
+  * Add build dependency to libcrypt-dev (Closes: #1107049)
+  * Update d/ch
+  * Drop old and useless build helper (Closes: #1108897)
+  * New upstream version 2.4.64
+    (Closes: CVE-2025-23048, CVE-2024-42516, CVE-2024-43204, CVE-2024-43394,
+    CVE-2024-47252, CVE-2025-49630, CVE-2025-49812, CVE-2025-53020)
+  * Unfuzz patches
+
+  [ Jo ]
+  * Adapted comment for SSLSessionTickets (Closes: #972695)
+
+ -- Yadd <yadd@debian.org>  Fri, 11 Jul 2025 06:37:48 +0200
+
+apache2 (2.4.63-1) unstable; urgency=medium
+
+  * Team upload
+  * New upstream version 2.4.63
+  * Drop patches included in upstream
+  * Back to unstable
+
+ -- Yadd <yadd@debian.org>  Fri, 24 Jan 2025 07:51:38 +0100
+
+apache2 (2.4.62-6) experimental; urgency=medium
+
+  * Fix Reverse proxy via mod_rewrite broken after 2.4.62
+    (Closes: #1081266)
+
+ -- Bastien Roucariès <rouca@debian.org>  Tue, 26 Nov 2024 14:39:33 +0000
+
+apache2 (2.4.62-5) experimental; urgency=medium
+
+  * Fix CVE-2024-38473 regression: error parsing URL //: with space
+    (Closes: #1079171)
+
+ -- Bastien Roucariès <rouca@debian.org>  Thu, 14 Nov 2024 00:14:37 +0000
+
+apache2 (2.4.62-4) experimental; urgency=medium
+
+  * Fix CVE-2024-38473 regression: error parsing URL //: Invalid host/port
+    SetHandler "proxy:unix:/run/sympa/wwsympa.socket|fcgi://" failed
+    with AH01059: error
+    (Closes: #1076554)
+
+ -- Bastien Roucariès <rouca@debian.org>  Sat, 05 Oct 2024 18:11:40 +0000
+
+apache2 (2.4.62-3) unstable; urgency=medium
+
+  * Fix debian/changelog
+
+ -- Bastien Roucariès <rouca@debian.org>  Fri, 04 Oct 2024 13:35:02 +0000
+
+apache2 (2.4.62-2) unstable; urgency=medium
+
+  * Add myself as maintainer with yadd agreement.
+  * Fix CVE-2024-38474 regression:
+    Better question mark tracking to avoid UnsafeAllow3F
+    (Closes: #1079172)
+  * Fix CVE-2024-39884 regression:
+    Trust strings from configuration in mod_proxy
+    (Closes: #1079206)
+
+ -- Bastien Roucariès <rouca@debian.org>  Sun, 29 Sep 2024 18:47:03 +0000
+
+apache2 (2.4.62-1) unstable; urgency=medium
+
+  * New upstream version 2.4.62 (Closes: CVE-2024-40725, CVE-2024-40898)
+
+ -- Yadd <yadd@debian.org>  Thu, 18 Jul 2024 06:56:52 +0400
+
+apache2 (2.4.61-1) unstable; urgency=medium
+
+  * New upstream version 2.4.61 (Closes: CVE-2024-39884)
+
+ -- Yadd <yadd@debian.org>  Wed, 03 Jul 2024 19:22:29 +0400
+
+apache2 (2.4.60-1) unstable; urgency=medium
+
+  [ Bastien Roucariès ]
+  * Forward port CVE-2023-25690 uwsgi tests
+  * Fix depends of uwsgi test
+  * Use python3 uwsgi plugin
+  * Encode bytes for uwsgi test
+
+  [ Bryce Harrington ]
+  * Add UFW profile integration (Closes: #1071705)
+
+  [Chris Murray]
+  * Use https instead of http in doc (LP: #2045055)
+
+  [ Yadd ]
+  * Bump liblua from liblua5.3-dev to liblua5.4-dev (Closes: #1071701)
+  * Update test framework
+  * releasing package apache2 version 2.4.59-1~deb12u1
+  * New upstream version (CLoses: CVE-2024-36387, CVE-2024-38472,
+    CVE-2024-38473, CVE-2024-38474, CVE-2024-38475, CVE-2024-38476,
+    CVE-2024-38477, CVE-2024-39573)
+  * Unfuzz patches
+
+ -- Yadd <yadd@debian.org>  Mon, 01 Jul 2024 18:04:08 +0400
+
+apache2 (2.4.59-2) unstable; urgency=medium
+
+  * Breaks against fossil due to CVE-2024-24795 follows up
+
+ -- Bastien Roucariès <rouca@debian.org>  Mon, 29 Apr 2024 21:55:28 +0000
+
+apache2 (2.4.59-1) unstable; urgency=medium
+
+  [ Stefan Fritsch ]
+  * Remove old transitional packages libapache2-mod-md and
+    libapache2-mod-proxy-uwsgi. Closes: #1032628
+
+  [ Yadd ]
+  * mod_proxy_connect: disable AllowCONNECT by default (Closes: #1054564)
+  * Refresh patches
+  * New upstream version 2.4.59
+    (Closes: #1068412 CVE-2024-27316 CVE-2024-24795 CVE-2023-38709)
+  * Refresh patches
+  * Update patches
+  * Update test framework
+
+ -- Yadd <yadd@debian.org>  Fri, 05 Apr 2024 08:08:11 +0400
+
+apache2 (2.4.58-1) unstable; urgency=medium
+
+  [ Bas Couwenberg ]
+  * Provide dh-sequence-apache2 (Closes: #1050870)
+
+  [ Yadd ]
+  * Drop dependency to obsolete lsb-base
+  * New upstream version 2.4.58 (Closes: CVE-2023-31122, CVE-2023-43622,
+    CVE-2023-45802)
+  * Refresh patches
+
+ -- Yadd <yadd@debian.org>  Thu, 19 Oct 2023 14:56:29 +0400
+
+apache2 (2.4.57-3) unstable; urgency=medium
+
+  * Update a2enmod to drop given/when (Closes: #1050458)
+  * Restore changes not included in Bookworm (set -e in apache2ctl)
+
+ -- Yadd <yadd@debian.org>  Tue, 29 Aug 2023 11:39:32 +0400
+
 apache2 (2.4.57-2) unstable; urgency=medium
 
   * Revert debian/* changes (Bookworm freeze)

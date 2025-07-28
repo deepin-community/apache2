@@ -1,5 +1,6 @@
 debian/a2enmod					/usr/sbin
 debian/a2query					/usr/sbin
+debian/apache2-utils.ufw.profile		/etc/ufw/applications.d/
 debian/apache2ctl				/usr/sbin
 debian/ask-for-passphrase			/usr/share/apache2/
 debian/bash_completion/a2enmod			/usr/share/bash-completion/completions/
