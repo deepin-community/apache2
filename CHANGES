@@ -1,5 +1,148 @@
                                                          -*- coding: utf-8 -*-
+Changes with Apache 2.4.67
+
+  *) mod_md: update to version 2.6.10
+     - Fix issue #420 <https://github.com/icing/mod_md/issues/420> by ignoring
+       job.json files that claim to have completely finished a certificate
+       renewal, but have not produced the necessary result files.
+
+  *) mod_http2: update to version 2.0.39
+     Remove streams own memory allocator after reports of memory problems
+     with third party modules.
+     [Stefan Eissing]
+
+  *) mod_http2: update to version 2.0.38
+     Source sync with mod_h2 github repository. No functional change.
+     [Stefan Eissing]
+
+  *) Updated conf/mime.types: added vnd.sqlite3, HEIC, HEIF
+     [Alexandru Mărășteanu <hello alexei.ro>]
+
+  *) mod_md: update to version 2.6.7
+     - Fix a regression in `MDStapleOthers` which broke in v2.6.0 and no longer
+       applied, no matter the configuration.
+
+  *) mod_md: update to version 2.6.9
+     - Pebble 2.9+ reports another error when terms of service agreement is
+       not set. Treating all "userActionRequired" errors as permanent now.
+
+  *) mod_md: update to version 2.6.8
+     - Fix the ARI related `replaces` property in ACME order creation to only
+       be used when the CA supports ARI and it is enabled in the menu config.
+     - Fix compatibility with APR versions before 1.6.0 which do not have
+       `apr_cstr_casecmp` and should use `apr_strnatcasecmp` instead.
+
+  *) mod_http2: update to version 2.0.37
+     Prevent double purge of a stream, resulting in a double free.
+     Fixes PR 69899.
+     [Stefan Eissing]
+
+  *) mod_md: Use correct function name when compiling against APR < 1.6.0.
+     PR 69954 [Tần Quảng <baobaoxich@gmail.com>]
+
+Changes with Apache 2.4.66
+
+  *) SECURITY: CVE-2025-66200: Apache HTTP Server: mod_userdir+suexec
+     bypass via AllowOverride FileInfo (cve.mitre.org)
+     mod_userdir+suexec bypass via AllowOverride FileInfo
+     vulnerability in Apache HTTP Server. Users with access to use
+     the RequestHeader directive in htaccess can cause some CGI
+     scripts to run under an unexpected userid.
+     Credits: Mattias Åsander (Umeå University)
+
+  *) SECURITY: CVE-2025-65082: Apache HTTP Server: CGI environment
+     variable override (cve.mitre.org)
+     Improper Neutralization of Escape, Meta, or Control Sequences
+     vulnerability in Apache HTTP Server through environment
+     variables set via the Apache configuration unexpectedly
+     superseding variables calculated by the server for CGI programs.
+     Credits: Mattias Åsander (Umeå University)
+
+  *) SECURITY: CVE-2025-59775: Apache HTTP Server: NTLM Leakage on
+     Windows through UNC SSRF (cve.mitre.org)
+     Server-Side Request Forgery (SSRF) vulnerability
+     in Apache HTTP Server on Windows with AllowEncodedSlashes On and
+     MergeSlashes Off allows to potentially leak NTLM hashes to a malicious 
+     server via SSRF and malicious requests or content
+     Credits: Orange Tsai (@orange_8361) from DEVCORE
+
+  *) SECURITY: CVE-2025-58098: Apache HTTP Server: Server Side
+     Includes adds query string to #exec cmd=... (cve.mitre.org)
+     Apache HTTP Server 2.4.65 and earlier with Server Side Includes
+     (SSI) enabled and mod_cgid (but not mod_cgi) passes the
+     shell-escaped query string to #exec cmd="..." directives.
+     Credits: Anthony Parfenov (United Rentals, Inc.)
+
+  *) SECURITY: CVE-2025-55753: Apache HTTP Server: mod_md (ACME),
+     unintended retry intervals (cve.mitre.org)
+     An integer overflow in the case of failed ACME certificate
+     renewal leads, after a number of failures (~30 days in default
+     configurations), to the backoff timer becoming 0. Attempts to
+     renew the certificate then are repeated without delays until it
+     succeeds.
+     Credits: Aisle Research
+
+  *) mod_http2: Fix handling of 304 responses from mod_cache. PR 69580.
+     [Stefan Eissing]
+
+  *) mod_http2/mod_proxy_http2: fix a bug in calculating the log2 value of
+     integers, used in push diaries and proxy window size calculations.
+     PR69741 [Benjamin P. Kallus]
+
+  *) mod_md: update to version 2.6.5
+     - New directive `MDInitialDelay`, controlling how longer to wait after
+       a server restart before checking certificates for renewal.
+       [Michael Kaufmann]
+     - Hardening: when build with OpenSSL older than 1.0.2 or old libressl
+       versions, the parsing of ASN.1 time strings did not do a length check.
+     - Hardening: when reading back OCSP responses stored in the local JSON
+       store, missing 'valid' key led to uninitialized values, resulting in
+       wrong refresh behaviour.
+
+  *) mod_md: update to version 2.6.6
+     - Fix a small memory leak when using OpenSSL's BIGNUMs. [Theo Buehler]
+     - Fix reuse of curl easy handles by resetting them. [Michael Kaufmann]
+
+  *) mod_http2: update to version 2.0.35
+     New directive `H2MaxStreamErrors` to control how much bad behaviour
+     by clients is tolerated before the connection is closed.
+     [Stefan Eissing]
+
+  * mod_proxy_http2: add support for ProxyErrorOverride directive. PR69771
+
+  *) mpm_common: Add new ListenTCPDeferAccept directive that allows to specify
+     the value set for the TCP_DEFER_ACCEPT socket option on listen sockets.
+     [Ruediger Pluem]
+
+  *) mod_ssl: Add SSLVHostSNIPolicy directive to control the virtual
+     host compatibility policy.  PR 69743.  [Joe Orton]
+
+  *) mod_md: update to version 2.6.2
+     - Fix error retry delay calculation to not already doubling the wait
+       on the first error.
+
+  *) mod_md: update to version 2.6.1
+     - Increasing default `MDRetryDelay` to 30 seconds to generate less bursty
+       traffic on errored renewals for the ACME CA. This leads to error retries
+        of 30s, 1 minute, 2, 4, etc. up to daily attempts.
+     - Checking that configuring `MDRetryDelay` will result in a positive
+       duration. A delay of 0 is not accepted.
+     - Fix a bug in checking Content-Type of responses from the ACME server.
+     - Added ACME ARI support (rfc9773) to the module. Enabled by default. New
+       directive "MDRenewViaARI on|off" for controlling this.
+     - Removing tailscale support. It has not been working for a long time
+       as the company decided to change their APIs. Away with the dead code,
+       documentation and tests.
+     - Fixed a compilation issue with pre-industrial versions of libcurl.
+
 Changes with Apache 2.4.65
+
+  *) SECURITY: CVE-2025-54090: Apache HTTP Server: 'RewriteCond expr'
+     always evaluates to true in 2.4.64 (cve.mitre.org)
+     A bug in Apache HTTP Server 2.4.64 results in all "RewriteCond
+     expr ..." tests evaluating as "true".
+     Users are recommended to upgrade to version 2.4.65, which fixes
+     the issue.
 
 Changes with Apache 2.4.64
 
@@ -541,7 +684,8 @@ Changes with Apache 2.4.59
   *) htpasswd: Add support for passwords using SHA-2.  [Joe Orton,
      Yann Ylavic]
 
-  *) core: Allow mod_env to override system environment vars. [Joe Orton]
+  *) core: Allow mod_env to override system environment vars. PR 63117.
+     [Joe Orton]
 
   *) Allow mod_dav_fs to tolerate race conditions between PROPFIND and an
      operation which removes a directory/file between apr_dir_read() and

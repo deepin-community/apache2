@@ -5,4 +5,3 @@ customize_apxs.patch
 build_suexec-custom.patch
 reproducible_builds.diff
 fix-macro.patch
-#0017-When-a-rewrite-to-proxy-is-configured-in-the-server-.patch

@@ -1,3 +1,56 @@
+apache2 (2.4.65-2) unstable; urgency=medium
+
+  Following the resolution of CVE-2025-23048,
+  some SSL-enabled websites may begin encountering
+  the error (AH02032):
+  .
+    Misdirected Request:
+    The client needs a new connection for this request as the
+    requested host name does not match the Server Name Indication
+    (SNI) in use for this connection.
+  .
+  This behavior is particularly noticeable with AWS Application
+  Load Balancers. Although they support intelligent SNI handling,
+  they do not (as of this writing) relay SNI data to the target
+  server, resulting in failed connections when hostnames don’t align.
+  .
+  Without an SNI provided by the client, there is nothing httpd
+  can do to determine which vhost/configuration should be
+  used to provide the correct certificate (and TLS authentication
+  eventually) whenever multiple vhosts listen on the same IP:port.
+  .
+  That's because reading the HTTP Host header necessarily has to
+  happen after the TLS handshake/auth/decryption (and later
+  renegotiation is not an option with TLSv1.3).
+  .
+  So those connections fall back to the first vhost declared on
+  the IP:port for the TLS handshake part, and if the request
+  Host header finally matches a different vhost with a different
+  TLS configuration it's rejected with AH02032.
+  .
+  Before 2.4.64 the check was not accurate and would allow that,
+  with security implications.
+  .
+  As a workaround, you may (after a risk analysis) generate a
+  wildcard certificate. If you’re managing multiple domains,
+  consolidate them into a single certificate by including each
+  wildcard domain as an alias. Then, update the Apache configuration
+  to reference this unified certificate.
+  .
+  Another possible workaround is to configure each virtual host to
+  listen on a separate port. This approach avoids SNI-related issues
+  by ensuring that each vhost is uniquely addressed through its own
+  connection endpoint, thereby allowing distinct TLS configurations
+  without ambiguity.
+  .
+  This error may also stem from a misconfigured HAProxy setup.
+  In such cases, enabling dynamic SNI handling on HAProxy might be
+  necessary to ensure that the correct hostname is passed through
+  during the TLS handshake. After risk analysis, it could be done
+  by using "sni req.hdr(Host)" directive.
+
+ -- Bastien Roucariès <rouca@debian.org>  Fri, 25 Jul 2025 20:33:38 +0200
+
 apache2 (2.4.64-2) unstable; urgency=medium
 
   RFC 8996 published by the IETF in March 2021,
@@ -7,7 +60,7 @@ apache2 (2.4.64-2) unstable; urgency=medium
   These older protocols lack support for modern cryptographic
   algorithms and are prone to exploits that threaten data
   confidentiality and integrity. In alignment with RFC 8996,
-  we disable by default this protocols.
+  we disable by default these protocols.
   .
   This change can cause older applications or systems
   to break if they haven't been updated to support

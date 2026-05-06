@@ -275,7 +275,18 @@
 
     RewriteRule ^/modules/rewrite/escaping/qsd-like/(.*) /$1? [R]
     RewriteRule ^/modules/rewrite/escaping/qsd-like-plus-qsa/(.*) /$1? [R,QSA]
+    # For the following rule, UnsafeAllow3F is needed from 2.4.60 to 2.4.62 only
+    <IfVersion < 2.4.60>
     RewriteRule ^/modules/rewrite/escaping/qsd-like-plus-qsa-qsl/(.*) /$1? [R,QSA,QSL]
+    </IfVersion>
+    <IfVersion >= 2.4.60>
+    <IfVersion > 2.4.62>
+    RewriteRule ^/modules/rewrite/escaping/qsd-like-plus-qsa-qsl/(.*) /$1? [R,QSA,QSL]
+    </IfVersion>
+    <IfVersion <= 2.4.62>
+    RewriteRule ^/modules/rewrite/escaping/qsd-like-plus-qsa-qsl/(.*) /$1? [R,QSA,QSL,UnsafeAllow3F]
+    </IfVersion>
+    </IfVersion>
 
     <IfVersion >= 2.4.57>
       RewriteRule ^/modules/rewrite/escaping/local_bctls/(.*) /?$1 [BCTLS]
@@ -295,9 +306,51 @@
       RewriteRule proxy_ne/(.*) http://@SERVERNAME@:@PORT@/?$1 [P,NE]
     </LocationMatch>
 
-   <Location /modules/rewrite/escaping>
+
+   RewriteCond expr false
+   RewriteRule ^/modules/rewrite/expr/notgone/false$ - [G]
+
+   RewriteCond expr !true
+   RewriteRule ^/modules/rewrite/expr/notgone/nottrue$ - [G]
+
+   RewriteCond expr true
+   RewriteRule ^/modules/rewrite/expr/shouldredir/true$ /dummy [R=303]
+
+   RewriteCond expr !false
+   RewriteRule ^/modules/rewrite/expr/shouldredir/notfalse$ /dummy [R=303]
+
+   <Location /modules/rewrite/>
       Header always set rewritten-query "expr=%{QUERY_STRING}"
    </Location>
+
+   <VirtualHost rewrite_prefix_stat>
+      # This can go beyond the default LimitRequestLine of 128 depending on ServerRoot
+      LimitRequestLine 1024
+      # If the prefix stat fails, it would become docroot-relative and 404. Note the at-serverroot is a literal in the generated httpd.conf
+      RewriteRule ^/modules/rewrite/prefixstat/index.html @SERVERROOT@/htdocs/index.html
+      RewriteRule ^/modules/rewrite/prefixstat/query/index.html %{QUERY_STRING}
+      <IfVersion >= 2.4.60>
+        RewriteRule ^/modules/rewrite/prefixstat/query-optin/index.html %{QUERY_STRING} [UnsafePrefixStat]
+      </IfVersion>
+   </VirtualHost>
+
+    RewriteRule ^/modules/rewrite/badquery/literal /modules/rewrite/badquery/literal?theval [PT]
+    RewriteRule ^/modules/rewrite/badquery/literal /modules/rewrite/badquery/literal?theval [PT]
+
+    # Should fail if the capture has %3f
+    RewriteRule ^/modules/rewrite/badquery/backref/(.*)$ /modules/rewrite/badquery/backref$1 [PT]
+    RewriteRule ^/modules/rewrite/badquery/backref-map/(.*)$ /modules/rewrite/badquery/backref${lower:$1} [PT]
+    # Non opt-in safe substitutions from from PR69197
+    RewriteRule ^/modules/rewrite/badquery/backref-qsa/(.*)$ /modules/rewrite/badquery/backref?query=$1 [QSA,PT]
+    RewriteRule ^/modules/rewrite/badquery/backref-qsalike/(.*)$ /modules/rewrite/badquery/backref?query=$1&%{QUERY_STRING} [PT]
+    RewriteRule ^/modules/rewrite/badquery/backref-noqsa/(.*)$ /modules/rewrite/badquery/backref?query=$1 [PT]
+    RewriteRule ^/modules/rewrite/badquery/backref-noqsa-map/(.*)$ /modules/rewrite/badquery/backref?query=${lower:$1} [PT]
+    RewriteRule ^/modules/rewrite/badquery/backref-qslast/(.*)/(.*)$ /modules/rewrite/badquery/backref$2?query=$1 [QSL,PT]
+    <IfVersion >= 2.4.60>
+      RewriteRule ^/modules/rewrite/badquery/backref-optin/(.*)$ /modules/rewrite/badquery/backref$1 [PT,UnsafeAllow3F]
+    </IfVersion>
+
+
    <VirtualHost cve_2011_3368_rewrite>
       DocumentRoot @SERVERROOT@/htdocs/modules/proxy
       RewriteEngine On
@@ -378,8 +431,13 @@
     AddHandler cgi-script .sh
     AddHandler cgi-script .pl
     ScriptLog @SERVERROOT@/logs/mod_cgi.log
-    ScriptLogLength 40960
+    ScriptLogLength 51200
     ScriptLogBuffer 256
+
+    <IfModule mod_env.c>
+        SetEnv GATEWAY?INTERFACE "dummy/1.0"
+        SetEnv HTTP?host "localhost"
+    </ifModule>
 
     <Directory @SERVERROOT@/htdocs/modules/cgi>
         Options +ExecCGI
@@ -531,6 +589,16 @@ Alias /manual @inherit_documentroot@/manual
   </IfVersion>
     <Directory @SERVERROOT@/htdocs/modules/dir/htaccess>
         AllowOverride Indexes
+    </Directory>
+    <Directory @SERVERROOT@/htdocs/modules/dir/fallback>
+       <IfModule mod_negotiation.c>
+         Options +MultiViews
+       </IfModule>
+       <IfModule mod_mime.c>
+         AddType server-status .magictype
+       </IfModule>
+       DirectoryIndex fallback.magictype
+      # FallBackResource /modules/dir/fallback/fallback.magictype
     </Directory>
 </IfModule>
 
@@ -880,6 +948,9 @@ LimitRequestFields    32
          # 404 should be inherited from /apache
          ErrorDocument 500 "hmph
     </Directory>
+
+    TraceEnable off
+    ErrorDocument 405 /i/dont/exist
 
 </VirtualHost>
 
@@ -1519,7 +1590,6 @@ LimitRequestFields    32
    <IfModule mod_proxy_html.c>
       <IfModule mod_proxy.c>
          Alias /modules/xml2enc/back @SERVERROOT@/htdocs/modules/xml2enc
-         Alias /modules/xml2enc/back/iso @SERVERROOT@/htdocs/modules/xml2enc
          <Location /modules/xml2enc/back>
              AddType application/foo+xml fooxml
              AddType application/notreallyxml notxml
