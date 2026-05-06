@@ -14,9 +14,9 @@
 <script src="./style/scripts/prettify.min.js" type="text/javascript">
 </script>
 
-<link href="./images/favicon.ico" rel="shortcut icon" /></head>
+<link href="./images/favicon.png" rel="shortcut icon" /></head>
 <body id="manual-page"><div id="page-header">
-<p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p>
+<p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.4</p>
 <img alt="" src="./images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="./images/left.gif" /></a></div>
@@ -82,10 +82,9 @@ Negotiation</a></li>
     other media types, but also allowing any other media type as a
     last resort:</p>
 
-<div class="example"><p><code>
-  Accept-Language: fr; q=1.0, en; q=0.5<br />
-  Accept: text/html; q=1.0, text/*; q=0.8, image/gif; q=0.6, image/jpeg; q=0.6, image/*; q=0.5, */*; q=0.1
-</code></p></div>
+<div class="example"><pre class="prettyprint lang-config">Accept-Language: fr; q=1.0, en; q=0.5
+Accept: text/html; q=1.0, text/*; q=0.8, image/gif; q=0.6, image/jpeg; q=0.6, image/*; q=0.5, */*; q=0.1</pre>
+</div>
 
     <p>httpd supports 'server driven' content negotiation, as
     defined in the HTTP/1.1 specification. It fully supports the
@@ -161,36 +160,64 @@ Negotiation</a></li>
     absolute or relative URIs for any file located on the same server as
     the map file.</p>
 
-<div class="example"><p><code>
-  URI: foo<br />
-<br />
-  URI: foo.en.html<br />
-  Content-type: text/html<br />
-  Content-language: en<br />
-<br />
-  URI: foo.fr.de.html<br />
-  Content-type: text/html;charset=iso-8859-2<br />
-  Content-language: fr, de<br />
-</code></p></div>
+<div class="example"><pre class="prettyprint lang-config">URI: foo
+
+URI: foo.en.html
+Content-type: text/html
+Content-language: en
+
+URI: foo.fr.de.html
+Content-type: text/html;charset=iso-8859-2
+Content-language: fr, de</pre>
+</div>
 
     <p>Note also that a typemap file will take precedence over the
-    filename's extension, even when Multiviews is on. If the
-    variants have different source qualities, that may be indicated
-    by the "qs" parameter to the media type, as in this picture
-    (available as JPEG, GIF, or ASCII-art): </p>
+    filename's extension, even when Multiviews is on. If a
+    <code>.var</code> type map file is found during a Multiviews
+    directory scan, the server will use <em>only</em> the variants
+    listed in that type map file. Any other files in the directory
+    that match the base name but are not listed in the type map
+    will be ignored entirely. For example, if <code>foo.var</code>
+    exists and lists only <code>foo.en.html</code> and
+    <code>foo.fr.de.html</code>, then a file
+    <code>foo.mn.html</code> present in the same directory will
+    never be served through negotiation, even if the client
+    requests Mongolian. To make such a variant available, it must
+    be added to the type map file.</p>
 
-<div class="example"><p><code>
-  URI: foo<br />
-<br />
-  URI: foo.jpeg<br />
-  Content-type: image/jpeg; qs=0.8<br />
-<br />
-  URI: foo.gif<br />
-  Content-type: image/gif; qs=0.5<br />
-<br />
-  URI: foo.txt<br />
-  Content-type: text/plain; qs=0.01<br />
-</code></p></div>
+    <p>This behavior is important for sites that are adding new
+    language variants over time. If you have an existing resource
+    <code>foo.html</code> and later add translated variants with
+    language extensions, you should list all variants (including
+    the original) in the type map file. The original file can be
+    assigned its language in the type map without being renamed:</p>
+
+<div class="example"><pre class="prettyprint lang-config">URI: foo
+
+URI: foo.html
+Content-type: text/html
+Content-language: en
+
+URI: foo.fr.html
+Content-type: text/html
+Content-language: fr</pre>
+</div>
+
+    <p>If the variants have different source qualities, that may be
+    indicated by the "qs" parameter to the media type, as in this
+    picture (available as JPEG, GIF, or ASCII-art): </p>
+
+<div class="example"><pre class="prettyprint lang-config">URI: foo
+
+URI: foo.jpeg
+Content-type: image/jpeg; qs=0.8
+
+URI: foo.gif
+Content-type: image/gif; qs=0.5
+
+URI: foo.txt
+Content-type: text/plain; qs=0.01</pre>
+</div>
 
     <p>qs values can vary in the range 0.000 to 1.000. Note that
     any variant with a qs value of 0.000 will never be chosen.
@@ -684,26 +711,9 @@ factors to 5 decimal places before choosing the best variant.</p>
 <a href="./ja/content-negotiation.html" hreflang="ja" rel="alternate" title="Japanese">&nbsp;ja&nbsp;</a> |
 <a href="./ko/content-negotiation.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="./tr/content-negotiation.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="./images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
-<script type="text/javascript"><!--//--><![CDATA[//><!--
-var comments_shortname = 'httpd';
-var comments_identifier = 'http://httpd.apache.org/docs/2.4/content-negotiation.html';
-(function(w, d) {
-    if (w.location.hostname.toLowerCase() == "httpd.apache.org") {
-        d.write('<div id="comments_thread"><\/div>');
-        var s = d.createElement('script');
-        s.type = 'text/javascript';
-        s.async = true;
-        s.src = 'https://comments.apache.org/show_comments.lua?site=' + comments_shortname + '&page=' + comments_identifier;
-        (d.getElementsByTagName('head')[0] || d.getElementsByTagName('body')[0]).appendChild(s);
-    }
-    else { 
-        d.write('<div id="comments_thread">Comments are disabled for this page at the moment.<\/div>');
-    }
-})(window, document);
-//--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2025 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+</div><div id="footer">
+<p class="apache">Copyright 2026 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

@@ -61,6 +61,8 @@ static void transit(h2_session *session, const char *action,
 static void on_stream_state_enter(void *ctx, h2_stream *stream);
 static void on_stream_state_event(void *ctx, h2_stream *stream, h2_stream_event_t ev);
 static void on_stream_event(void *ctx, h2_stream *stream, h2_stream_event_t ev);
+static apr_status_t h2_session_shutdown(h2_session *session, int error,
+                                        const char *msg, int force_close);
 
 static int h2_session_status_from_apr_status(apr_status_t rv)
 {
@@ -109,31 +111,15 @@ static void cleanup_unprocessed_streams(h2_session *session)
     h2_mplx_c1_streams_do(session->mplx, rst_unprocessed_stream, session);
 }
 
-/* APR callback invoked if allocation fails. */
-static int abort_on_oom(int retcode)
-{
-    ap_abort_on_oom();
-    return retcode; /* unreachable, hopefully. */
-}
-
 static h2_stream *h2_session_open_stream(h2_session *session, int stream_id,
                                          int initiated_on)
 {
     h2_stream * stream;
-    apr_allocator_t *allocator;
     apr_pool_t *stream_pool;
-    apr_status_t rv;
-    
-    rv = apr_allocator_create(&allocator);
-    if (rv != APR_SUCCESS)
-      return NULL;
 
-    apr_allocator_max_free_set(allocator, ap_max_mem_free);
-    apr_pool_create_ex(&stream_pool, session->pool, NULL, allocator);
-    apr_allocator_owner_set(allocator, stream_pool);
-    apr_pool_abort_set(abort_on_oom, stream_pool);
+    apr_pool_create(&stream_pool, session->pool);
     apr_pool_tag(stream_pool, "h2_stream");
-    
+
     stream = h2_stream_create(stream_id, stream_pool, session, 
                               session->monitor, initiated_on);
     if (stream) {
@@ -290,6 +276,7 @@ static int on_stream_close_cb(nghttp2_session *ngh2, int32_t stream_id,
                           "closing with err=%d %s"), 
                           (int)error_code, h2_protocol_err_description(error_code));
             h2_stream_rst(stream, error_code);
+            h2_mplx_c1_client_rst(session->mplx, stream_id, stream);
         }
     }
     return 0;
@@ -608,7 +595,11 @@ static int on_frame_send_cb(nghttp2_session *ngh2,
             /* PUSH_PROMISE we report on the promised stream */
             stream_id = frame->push_promise.promised_stream_id;
             break;
-        default:    
+        case NGHTTP2_RST_STREAM:
+            if(frame->rst_stream.error_code == NGHTTP2_FLOW_CONTROL_ERROR)
+              ++session->stream_errors;
+            break;
+        default:
             break;
     }
     
@@ -652,10 +643,11 @@ static int on_frame_not_send_cb(nghttp2_session *ngh2,
 
     stream = get_stream(session, stream_id);
     h2_util_frame_print(frame, buffer, sizeof(buffer)/sizeof(buffer[0]));
-    ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, session->c1,
-                  H2_SSSN_LOG(APLOGNO(10509), session,
-                  "not sent FRAME[%s], error %d: %s"),
-                  buffer, ngh2_err, nghttp2_strerror(ngh2_err));
+    if (!stream || !stream->rst_error)
+        ap_log_cerror(APLOG_MARK, APLOG_DEBUG, 0, session->c1,
+                      H2_SSSN_LOG(APLOGNO(10509), session,
+                      "not sent FRAME[%s], error %d: %s"),
+                      buffer, ngh2_err, nghttp2_strerror(ngh2_err));
     if(stream) {
         h2_stream_rst(stream, NGHTTP2_PROTOCOL_ERROR);
         return 0;
@@ -968,6 +960,7 @@ apr_status_t h2_session_create(h2_session **psession, conn_rec *c, request_rec *
     session->max_stream_count = h2_config_sgeti(s, H2_CONF_MAX_STREAMS);
     session->max_stream_mem = h2_config_sgeti(s, H2_CONF_STREAM_MAX_MEM);
     session->max_data_frame_len = h2_config_sgeti(s, H2_CONF_MAX_DATA_FRAME_LEN);
+    session->max_stream_errors = h2_config_sgeti(s, H2_CONF_MAX_STREAM_ERRORS);
 
     session->out_c1_blocked = h2_iq_create(session->pool, (int)session->max_stream_count);
     session->ready_to_process = h2_iq_create(session->pool, (int)session->max_stream_count);
@@ -1063,14 +1056,16 @@ apr_status_t h2_session_create(h2_session **psession, conn_rec *c, request_rec *
                                   "created, max_streams=%d, stream_mem=%d, "
                                   "workers_limit=%d, workers_max=%d, "
                                   "push_diary(type=%d,N=%d), "
-                                  "max_data_frame_len=%d"),
+                                  "max_data_frame_len=%d, "
+                                  "max_stream_errors=%d"),
                       (int)session->max_stream_count, 
                       (int)session->max_stream_mem,
                       session->mplx->processing_limit,
                       session->mplx->processing_max,
                       session->push_diary->dtype, 
                       (int)session->push_diary->N,
-                      (int)session->max_data_frame_len);
+                      (int)session->max_data_frame_len,
+                      session->max_stream_errors);
     }
     
     apr_pool_pre_cleanup_register(pool, c, session_pool_cleanup);
@@ -1609,6 +1604,14 @@ static void h2_session_ev_mpm_stopping(h2_session *session, int arg, const char 
     }
 }
 
+static void h2_session_ev_bad_client(h2_session *session, int arg, const char *msg)
+{
+    transit(session, msg, H2_SESSION_ST_DONE);
+    if (!session->local.shutdown) {
+        h2_session_shutdown(session, arg, msg, 1);
+    }
+}
+
 static void h2_session_ev_pre_close(h2_session *session, int arg, const char *msg)
 {
     h2_session_shutdown(session, arg, msg, 1);
@@ -1806,6 +1809,9 @@ void h2_session_dispatch_event(h2_session *session, h2_session_event_t ev,
         case H2_SESSION_EV_NO_MORE_STREAMS:
             h2_session_ev_no_more_streams(session);
             break;
+        case H2_SESSION_EV_BAD_CLIENT:
+            h2_session_ev_bad_client(session, arg, msg);
+            break;
         default:
             ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, session->c1,
                           H2_SSSN_MSG(session, "unknown event %d"), ev);
@@ -1882,6 +1888,12 @@ apr_status_t h2_session_process(h2_session *session, int async,
             if (mpm_state == AP_MPMQ_STOPPING) {
                 h2_session_dispatch_event(session, H2_SESSION_EV_MPM_STOPPING, 0, NULL);
             }
+        }
+
+        if (session->max_stream_errors &&
+            session->stream_errors > session->max_stream_errors) {
+            h2_session_dispatch_event(session, H2_SESSION_EV_BAD_CLIENT,
+                                      NGHTTP2_PROTOCOL_ERROR, NULL);
         }
 
         session->status[0] = '\0';

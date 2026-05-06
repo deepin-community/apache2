@@ -14,9 +14,9 @@
 <script src="../style/scripts/prettify.min.js" type="text/javascript">
 </script>
 
-<link href="../images/favicon.ico" rel="shortcut icon" /></head>
+<link href="../images/favicon.png" rel="shortcut icon" /></head>
 <body id="manual-page"><div id="page-header">
-<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
+<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.4</p>
 <img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
@@ -29,7 +29,7 @@
 <a href="../tr/programs/rotatelogs.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
 </div>
 
-     <p><code>rotatelogs</code> is a simple program for use in
+     <p><code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> is a simple program for use in
      conjunction with Apache's piped logfile feature.  It supports
      rotation based on a time interval or maximum size of the log.</p>
 </div>
@@ -73,19 +73,19 @@ to the specified link name.  This can be used to watch
 the log continuously across rotations using a command like
 <code>tail -F linkname</code>.</p>
 <p>If the linkname is not an absolute
-path, it is relative to <code>rotatelogs</code>' working directory,
+path, it is relative to <code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code>' working directory,
 which is the <code class="directive"><a href="../mod/core.html#serverroot">ServerRoot</a></code> when
-<code>rotatelogs</code> is run by the server.  
+<code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> is run by the server.  
 </p>
 </dd>
 
 <dt><code>-p</code> <var>program</var></dt>
 
-<dd>If given, <code>rotatelogs</code> will execute the specified
+<dd>If given, <code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> will execute the specified
 program every time a new log file is opened.  The filename of the
 newly opened file is passed as the first argument to the program.  If
 executing after a rotation, the old log file is passed as the second
-argument.  <code>rotatelogs</code> does not wait for the specified
+argument.  <code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> does not wait for the specified
 program to terminate before continuing to operate, and will not log
 any error code returned on termination.  The spawned program uses the
 same stdin, stdout, and stderr as rotatelogs itself, and also inherits
@@ -93,7 +93,7 @@ the environment.</dd>
 
 <dt><code>-f</code></dt>
 <dd>Causes the logfile to be opened immediately, as soon as
-<code>rotatelogs</code> starts, instead of waiting for the
+<code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> starts, instead of waiting for the
 first logfile entry to be read (for non-busy sites, there may be
 a substantial delay between when the server is started
 and when the first request is handled, meaning that the
@@ -167,9 +167,9 @@ megabytes, but 5 megabytes was reached twice in the same day, the
 same log file name would be produced and log rotation would keep
 writing to the same file.</p>
 <p>If the logfile is not an absolute
-path, it is relative to <code>rotatelogs</code>' working directory,
+path, it is relative to <code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code>' working directory,
 which is the <code class="directive"><a href="../mod/core.html#serverroot">ServerRoot</a></code> when
-<code>rotatelogs</code> is run by the server.
+<code class="program"><a href="../programs/rotatelogs.html">rotatelogs</a></code> is run by the server.
 </p>
 </dd>
 
@@ -294,26 +294,9 @@ extensions.</p>
 <a href="../fr/programs/rotatelogs.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ko/programs/rotatelogs.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a> |
 <a href="../tr/programs/rotatelogs.html" hreflang="tr" rel="alternate" title="Türkçe">&nbsp;tr&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
-<script type="text/javascript"><!--//--><![CDATA[//><!--
-var comments_shortname = 'httpd';
-var comments_identifier = 'http://httpd.apache.org/docs/2.4/programs/rotatelogs.html';
-(function(w, d) {
-    if (w.location.hostname.toLowerCase() == "httpd.apache.org") {
-        d.write('<div id="comments_thread"><\/div>');
-        var s = d.createElement('script');
-        s.type = 'text/javascript';
-        s.async = true;
-        s.src = 'https://comments.apache.org/show_comments.lua?site=' + comments_shortname + '&page=' + comments_identifier;
-        (d.getElementsByTagName('head')[0] || d.getElementsByTagName('body')[0]).appendChild(s);
-    }
-    else { 
-        d.write('<div id="comments_thread">Comments are disabled for this page at the moment.<\/div>');
-    }
-})(window, document);
-//--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2025 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+</div><div id="footer">
+<p class="apache">Copyright 2026 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

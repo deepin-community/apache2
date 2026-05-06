@@ -14,9 +14,9 @@
 <script src="../style/scripts/prettify.min.js" type="text/javascript">
 </script>
 
-<link href="../images/favicon.ico" rel="shortcut icon" /></head>
+<link href="../images/favicon.png" rel="shortcut icon" /></head>
 <body id="manual-page"><div id="page-header">
-<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
+<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p>
 <p class="apache">Apache HTTP Server Version 2.4</p>
 <img alt="" src="../images/feather.png" /></div>
 <div class="up"><a href="./"><img title="&lt;-" alt="&lt;-" src="../images/left.gif" /></a></div>
@@ -29,6 +29,13 @@
 </div>
 
 
+    <div class="warning">
+    <p>Novell NetWare is end-of-life and is no longer supported.
+    This document is retained for historical reference only.
+    Links to Novell resources formerly referenced in this document are
+    no longer functional.</p>
+    </div>
+
     <p>This document explains how to install, configure and run
     Apache 2.0 under Novell NetWare 6.0 and above. If you find any bugs,
     or wish to contribute in other ways, please use our
@@ -38,10 +45,9 @@
     <p>The bug reporting page and dev-httpd mailing list are
     <em>not</em> provided to answer questions about configuration or
     running Apache.  Before you submit a bug report or request, first
-    consult this document, the <a href="http://wiki.apache.org/httpd/FAQ">Frequently Asked
+    consult this document, the <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">Frequently Asked
     Questions</a> page and the other relevant documentation topics. If
-    you still have a question or problem, post it to the <a href="news://developer-forums.novell.com/novell.devsup.webserver">
-    novell.devsup.webserver</a> newsgroup, where many Apache users are
+    you still have a question or problem, post it to the novell.devsup.webserver (formerly at <code>news://developer-forums.novell.com/novell.devsup.webserver</code>) newsgroup, where many Apache users are
     more than willing to answer new and obscure questions about using
     Apache on NetWare.</p>
 
@@ -68,15 +74,15 @@
     <p>Apache 2.0 is designed to run on NetWare 6.0 service pack 3
     and above. If you are running a service pack less
     than SP3, you must install the latest
-    <a href="http://developer.novell.com/ndk/libc.htm">NetWare Libraries
-    for C (LibC)</a>.</p>
+    NetWare Libraries
+    for C (LibC) (formerly at <code>http://developer.novell.com/ndk/libc.htm</code>).</p>
 
-    <p>NetWare service packs are available <a href="http://support.novell.com/misc/patlst.htm#nw">here</a>.</p>
+    <p>NetWare service packs are available here (formerly at <code>http://support.novell.com/misc/patlst.htm#nw</code>).</p>
 
     <p>Apache 2.0 for NetWare can also be run in a NetWare 5.1 environment
     as long as the latest service pack or the latest version
-    of the <a href="http://developer.novell.com/ndk/libc.htm">NetWare Libraries
-    for C (LibC)</a> has been installed .  <strong>WARNING:</strong> Apache 2.0
+    of the NetWare Libraries
+    for C (LibC) (formerly at <code>http://developer.novell.com/ndk/libc.htm</code>) has been installed .  <strong>WARNING:</strong> Apache 2.0
     for NetWare has not been targeted for or tested in this environment.</p>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
@@ -454,23 +460,23 @@
 
       <ul>
         <li>Metrowerks CodeWarrior 6.0 or higher with the
-        <a href="http://developer.novell.com/ndk/cwpdk.htm">NetWare PDK 3.0</a>
+        NetWare PDK 3.0 (formerly at <code>http://developer.novell.com/ndk/cwpdk.htm</code>)
         or higher.</li>
 
-        <li><a href="http://developer.novell.com/ndk/libc.htm">NetWare Libraries
-        for C (LibC)</a></li>
+        <li>NetWare Libraries
+        for C (LibC) (formerly at <code>http://developer.novell.com/ndk/libc.htm</code>)</li>
 
-        <li><a href="http://developer.novell.com/ndk/cldap.htm">LDAP Libraries
-        for C</a></li>
+        <li>LDAP Libraries
+        for C (formerly at <code>http://developer.novell.com/ndk/cldap.htm</code>)</li>
 
         <li><a href="http://www.gzip.org/zlib/">ZLIB Compression Library source code</a></li>
 
         <li>AWK utility (awk, gawk or similar). AWK can be downloaded from
-        <a href="http://developer.novell.com/ndk/apache.htm">http://developer.novell.com/ndk/apache.htm</a>.
+        <code>http://developer.novell.com/ndk/apache.htm</code>.
         The utility must be found in your windows path and must be named <code>awk.exe</code>.</li>
 
         <li>To build using the makefiles, you will need GNU make version 3.78.1 (GMake) available at
-        <a href="http://developer.novell.com/ndk/apache.htm">http://developer.novell.com/ndk/apache.htm</a>.</li>
+        <code>http://developer.novell.com/ndk/apache.htm</code>.</li>
       </ul>
 
     
@@ -666,26 +672,9 @@
 <p><span>Available Languages: </span><a href="../en/platform/netware.html" title="English">&nbsp;en&nbsp;</a> |
 <a href="../fr/platform/netware.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a> |
 <a href="../ko/platform/netware.html" hreflang="ko" rel="alternate" title="Korean">&nbsp;ko&nbsp;</a></p>
-</div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Libera.chat, or sent to our <a href="https://httpd.apache.org/lists.html">mailing lists</a>.</div>
-<script type="text/javascript"><!--//--><![CDATA[//><!--
-var comments_shortname = 'httpd';
-var comments_identifier = 'http://httpd.apache.org/docs/2.4/platform/netware.html';
-(function(w, d) {
-    if (w.location.hostname.toLowerCase() == "httpd.apache.org") {
-        d.write('<div id="comments_thread"><\/div>');
-        var s = d.createElement('script');
-        s.type = 'text/javascript';
-        s.async = true;
-        s.src = 'https://comments.apache.org/show_comments.lua?site=' + comments_shortname + '&page=' + comments_identifier;
-        (d.getElementsByTagName('head')[0] || d.getElementsByTagName('body')[0]).appendChild(s);
-    }
-    else { 
-        d.write('<div id="comments_thread">Comments are disabled for this page at the moment.<\/div>');
-    }
-})(window, document);
-//--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2025 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
-<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
+</div><div id="footer">
+<p class="apache">Copyright 2026 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/directives.html">Directives</a> | <a href="https://cwiki.apache.org/confluence/display/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();
 }

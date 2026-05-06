@@ -2,27 +2,30 @@ Description: Fix up FHS file locations for apache2 droppings.
 Forwarded: not-needed
 Author: Adam Conrad <adconrad@0c3.net>
 Reviewed-By: Yadd <yadd@debian.org>
-Last-Update: 2023-10-19
+Last-Update: 2026-05-05
 
 --- a/configure
 +++ b/configure
-@@ -42302,13 +42302,13 @@
- ap_prefix="${ap_cur}"
+@@ -42443,16 +42443,17 @@
+ 
+ cat >>confdefs.h <<_ACEOF
+ #define HTTPD_ROOT "${ap_prefix}"
++#define HTTPD_ROOT "/etc/apache2"
+ _ACEOF
  
  
--printf "%s\n" "#define HTTPD_ROOT \"${ap_prefix}\"" >>confdefs.h
-+printf "%s\n" "#define HTTPD_ROOT \"/etc/apache2\"" >>confdefs.h
+ cat >>confdefs.h <<_ACEOF
+-#define SERVER_CONFIG_FILE "${rel_sysconfdir}/${progname}.conf"
++#define SERVER_CONFIG_FILE "${progname}.conf"
+ _ACEOF
  
  
--printf "%s\n" "#define SERVER_CONFIG_FILE \"${rel_sysconfdir}/${progname}.conf\"" >>confdefs.h
-+printf "%s\n" "#define SERVER_CONFIG_FILE \"${progname}.conf\"" >>confdefs.h
+ cat >>confdefs.h <<_ACEOF
+-#define AP_TYPES_CONFIG_FILE "${rel_sysconfdir}/mime.types"
++#define AP_TYPES_CONFIG_FILE "mime.types"
+ _ACEOF
  
  
--printf "%s\n" "#define AP_TYPES_CONFIG_FILE \"${rel_sysconfdir}/mime.types\"" >>confdefs.h
-+printf "%s\n" "#define AP_TYPES_CONFIG_FILE \"mime.types\"" >>confdefs.h
- 
- 
- perlbin=`$ac_aux_dir/PrintPath perl`
 --- a/configure.in
 +++ b/configure.in
 @@ -934,11 +934,11 @@
@@ -46,7 +49,7 @@ Last-Update: 2023-10-19
  #define DEFAULT_REL_LOGFILEDIR "@rel_logfiledir@"
  #define DEFAULT_EXP_PROXYCACHEDIR "@exp_proxycachedir@"
  #define DEFAULT_REL_PROXYCACHEDIR "@rel_proxycachedir@"
-+#define DEFAULT_PIDLOG "/var/run/apache2.pid"
++#define DEFAULT_PIDLOG "/run/apache2.pid"
  
  #endif /* AP_CONFIG_LAYOUT_H */
 --- a/include/httpd.h
