@@ -11,12 +11,14 @@ unless (have_lwp) {
     plan tests => 0, need_lwp;
 }
 
-use Time::localtime;
+unless (eval "require Time::localtime") {
+    plan tests => 0, need 'Time::localtime';
+}
 
 my $config = Apache::Test::config();
 my $vars   = Apache::Test::vars();
 my $server = $config->server;
-my $time = localtime();
+my $time = Time::localtime::localtime();
 
 (my $mmn = $config->{httpd_info}->{MODULE_MAGIC_NUMBER}) =~ s/:\d+$//;
 
@@ -107,6 +109,12 @@ if (not have_min_apache_version('2.5.1')) {
     @vars = grep(!/_B64CERT/, @vars);
 }
 
+if (not have_min_apache_version('2.5.1') or
+    Apache::Test::normalize_vstring(Apache::TestSSLCA::version()) <
+    Apache::Test::normalize_vstring("3.2.0")) {
+    @vars = grep(!/_HANDSHAKE_RTT/, @vars);
+}
+
 plan tests => scalar (@vars), need need_lwp, need_module('test_ssl');
 
 for my $key (@vars) {
@@ -188,6 +196,7 @@ SSL_CIPHER_EXPORT            'false'
 SSL_CIPHER_ALGKEYSIZE        qr(^\d+$)
 SSL_CIPHER_USEKEYSIZE        qr(^\d+$)
 SSL_SECURE_RENEG             qr(^(false|true)$)
+SSL_HANDSHAKE_RTT            qr(^\d+$)
 
 SSL_CLIENT_S_DN              "$client_dn"
 SSL_SERVER_S_DN              qr(^$server_dn$)

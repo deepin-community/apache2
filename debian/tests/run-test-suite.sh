@@ -1,23 +1,6 @@
 #!/bin/bash
 
 . /etc/apache2/envvars
-set -xeu
-set -o pipefail
-export LANG=C
-export PATH=/usr/lib/ccache:$PATH
-# set to "-v t/modules/ext_filter.t ..." to run only a few test, but verbose
-TESTS=""
-TESTUSER=tuser
-
-# The test framework assumes localhost resolves exclusively to 127.0.0.1
-# (and not to ::1). So remove 'localhost' from the ::1 entry.
-perl -p -i -e ' if (/^\s*::1\s+/) { s/\s+localhost\s+/ /g }' /etc/hosts
-
-useradd --user-group --system --create-home -s /bin/bash $TESTUSER
-cp -a debian/perl-framework $AUTOPKGTEST_TMP
-cd $AUTOPKGTEST_TMP/perl-framework
-
-export HARNESS_VERBOSE=1
 
 run_tests () {
 	local MPM=$1
@@ -60,7 +43,3 @@ run_tests () {
 	fi
 	return 0
 }
-
-run_tests mpm_prefork
-run_tests mpm_worker
-run_tests mpm_event

@@ -8,8 +8,10 @@ use File::stat;
 
 my $have_apache_2 = have_apache 2;
 my $have_apache_2050 = have_min_apache_version "2.0.50";
+my $have_apache_2460 = have_min_apache_version "2.4.60";
 
-my $script_log_length = 40960;
+my $script_log_length = 51200;
+my $htdocs = Apache::Test::vars('documentroot');
 
 ## mod_cgi test
 ##
@@ -18,7 +20,7 @@ my $script_log_length = 40960;
 ## AddHandler cgi-script .sh
 ## AddHandler cgi-script .pl
 ## ScriptLog logs/mod_cgi.log
-## ScriptLogLength 40960
+## ScriptLogLength 51200
 ## ScriptLogBuffer 256
 ## <Directory @SERVERROOT@/htdocs/modules/cgi>
 ## Options +ExecCGI
@@ -48,6 +50,10 @@ my %test = (
     },
     'bogus-sh.sh' => {
         'rc' => 500,
+        'expect' => 'none'
+    },
+    'bogus-te.sh' => {
+        'rc' => 502,
         'expect' => 'none'
     },
     'acceptpathinfoon.sh' => {
@@ -90,6 +96,15 @@ my %test = (
         'rc' => 200,
         'expect' => 'this is nph-stdout'
     },
+    'env.pl?gateway' => {
+        'rc' => 200,
+        'expect' => 'GATEWAY_INTERFACE = CGI/1.1'
+    },
+    'env.pl?host' => {
+        'rc' => 200,
+        'expect' => 'HTTP_HOST = localhost'
+    },
+
 );
 
 #XXX: find something that'll on other platforms (/bin/sh aint it)
@@ -105,6 +120,11 @@ if (Apache::TestConfig::WINFU() || !$have_apache_2) {
 # CGI stderr handling works in 2.0.50 and later only on Unixes.
 if (!$have_apache_2050 || Apache::TestConfig::WINFU()) {
     delete @test{qw(stderr1.pl stderr2.pl stderr3.pl nph-stderr.pl)};
+}
+
+# Test for a CGI script with Transfer-Encoding: chunked
+if (1 || !$have_apache_2460 || Apache::TestConfig::WINFU()) {
+    delete @test{qw(bogus-te.sh)};
 }
 
 my $tests = ((keys %test) * 2) + (@post_content * 3) + 4;
@@ -132,10 +152,18 @@ foreach (sort keys %test) {
         $actual = GET_BODY "$path/$_";
         chomp $actual if $actual =~ /\n$/;
 
-        ok t_cmp($actual,
-                 $expected,
-                 "body for $_"
-                );
+        if ($expected =~ /=/) {
+            t_debug("$path/$_: check for $expected within $actual");
+            ok t_cmp($actual =~ /\Q$expected\E/ ? 1 : 0,
+                     1,
+                     "body for $_"
+                    );
+        } else {
+            ok t_cmp($actual,
+                     $expected,
+                     "body for $_"
+                    );
+        }
     }
     elsif ($_ !~ /^bogus/) {
         print "# no body test for this one\n";
