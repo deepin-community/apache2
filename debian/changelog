@@ -1,3 +1,20 @@
+apache2 (2.4.67-1~deb13u3) trixie-security; urgency=medium
+
+  * Fix CVE-2026-49975 (HTTP/2 Bomb)
+    The bomb targets HPACK, HTTP/2's header compression
+    scheme: one byte on the wire becomes one full header
+    allocation on the server, repeated thousands of times
+    per request. The hold is a zero-byte flow-control
+    window that keeps the server from ever freeing any of it.
+
+ -- Bastien Roucariès <rouca@debian.org>  Fri, 05 Jun 2026 12:55:53 +0200
+
+apache2 (2.4.67-1~deb13u2) trixie-security; urgency=medium
+
+  * Rebuild for trixie-security
+
+ -- Xavier Guimard <yadd@debian.org>  Wed, 06 May 2026 11:07:41 +0200
+
 apache2 (2.4.67-1~deb13u1) trixie; urgency=medium
 
   * New upstream release (Closes: #1135737, CVE-2026-23918, CVE-2026-24072,
