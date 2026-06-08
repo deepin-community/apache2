@@ -7,3 +7,4 @@ reproducible_builds.diff
 fix-macro.patch
 CVE-2026-49975_1.patch
 CVE-2026-49975_2.patch
+htdigest-link-crypt.patch
