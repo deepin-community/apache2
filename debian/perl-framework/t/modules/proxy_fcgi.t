@@ -154,7 +154,7 @@ sub run_fcgi_envvar_request
     }
 
     if(defined($fcgi_port)) {
-        if ($r->code ge '500') {
+        if ($r->code ge '400') {
             # Unknown failure, probably the request didn't hit the FCGI child
             # process, so it will hang waiting for our request
             kill 'TERM', $child;
@@ -328,6 +328,11 @@ foreach my $url (@udstests) {
 }
 
 for my $t (@balancertests) {
+    if (!have_module("proxy_balancer")) {
+        skip "no proxy_balancer";
+        skip "no proxy_balancer";
+        next;
+    }
     my $url = $t->{"url"};
     my $pathinfo = $t->{"pathinfo"};
     $envs = run_fcgi_envvar_request($fcgi_port, $url);
