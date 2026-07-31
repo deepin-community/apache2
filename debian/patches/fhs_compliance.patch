@@ -6,7 +6,7 @@ Last-Update: 2026-05-05
 
 --- a/configure
 +++ b/configure
-@@ -42443,16 +42443,17 @@
+@@ -42455,16 +42455,17 @@
  
  cat >>confdefs.h <<_ACEOF
  #define HTTPD_ROOT "${ap_prefix}"
@@ -28,7 +28,7 @@ Last-Update: 2026-05-05
  
 --- a/configure.in
 +++ b/configure.in
-@@ -934,11 +934,11 @@
+@@ -936,11 +936,11 @@
  echo $MODLIST | $AWK -f $srcdir/build/build-modules-c.awk > modules.c
  
  APR_EXPAND_VAR(ap_prefix, $prefix)
