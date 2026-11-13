@@ -39,7 +39,7 @@ static ap_filter_rec_t *cache_invalidate_filter_handle;
 /**
  * Entity headers' names
  */
-static const char *MOD_CACHE_ENTITY_HEADERS[] = {
+static const char *const MOD_CACHE_ENTITY_HEADERS[] = {
     "Allow",
     "Content-Encoding",
     "Content-Language",
@@ -819,7 +819,7 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
     apr_time_t exp, date, lastmod, now;
     apr_off_t size = -1;
     cache_info *info = NULL;
-    const char *reason, **eh;
+    const char *reason, *const *eh;
     apr_pool_t *p;
     apr_bucket *e;
     apr_table_t *headers;
@@ -1115,7 +1115,12 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
          */
         reason = "Authorization required";
     }
-    else if (ap_find_token(NULL, apr_table_get(r->headers_out, "Vary"), "*")) {
+    else if (ap_find_token(NULL, apr_table_get(r->headers_out, "Vary"), "*")
+            || ap_find_token(NULL, apr_table_get(r->err_headers_out, "Vary"), "*")) {
+        /* err_headers_out carries a Vary set via "Header always", which
+         * is merged into headers_out only when the response is actually
+         * stored (see cache_merge_headers_out()); check it here too so
+         * that decision matches what gets stored. */
         reason = "Vary header contains '*'";
     }
     else if (apr_table_get(r->subprocess_env, "no-cache") != NULL) {
@@ -1687,10 +1692,10 @@ static apr_status_t cache_invalidate_filter(ap_filter_t *f,
     }
     else {
 
-        if (r->status > 299) {
+        if (r->status >= HTTP_MULTIPLE_CHOICES) {
 
             ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(02466)
-                    "cache: response status to '%s' method is %d (>299), not invalidating cached entity: %s", r->method, r->status, r->uri);
+                    "cache: response status to '%s' method is %d (>=HTTP_MULTIPLE_CHOICES), not invalidating cached entity: %s", r->method, r->status, r->uri);
 
         }
         else {
