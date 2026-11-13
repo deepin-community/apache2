@@ -865,7 +865,7 @@ LYNX_PATH
 RANLIB
 LN_S
 AWK
-SVN
+GIT
 RSYNC
 PKGCONFIG
 RM
@@ -7489,17 +7489,17 @@ printf '%s\n' "no" >&6; }
 fi
 
 
-# Extract the first word of "svn", so it can be a program name with args.
-set dummy svn; ac_word=$2
+# Extract the first word of "git", so it can be a program name with args.
+set dummy git; ac_word=$2
 { printf '%s\n' "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 printf %s "checking for $ac_word... " >&6; }
-if test ${ac_cv_path_SVN+y}
+if test ${ac_cv_path_GIT+y}
 then :
   printf %s "(cached) " >&6
 else case e in #(
-  e) case $SVN in
+  e) case $GIT in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_SVN="$SVN" # Let the user override the test with a path.
+  ac_cv_path_GIT="$GIT" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -7513,7 +7513,7 @@ do
   esac
     for ac_exec_ext in '' $ac_executable_extensions; do
   if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
-    ac_cv_path_SVN="$as_dir$ac_word$ac_exec_ext"
+    ac_cv_path_GIT="$as_dir$ac_word$ac_exec_ext"
     printf '%s\n' "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -7525,10 +7525,10 @@ IFS=$as_save_IFS
 esac ;;
 esac
 fi
-SVN=$ac_cv_path_SVN
-if test -n "$SVN"; then
-  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $SVN" >&5
-printf '%s\n' "$SVN" >&6; }
+GIT=$ac_cv_path_GIT
+if test -n "$GIT"; then
+  { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: $GIT" >&5
+printf '%s\n' "$GIT" >&6; }
 else
   { printf '%s\n' "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf '%s\n' "no" >&6; }
@@ -8347,6 +8347,12 @@ then :
   printf '%s\n' "#define HAVE_SYS_PRCTL_H 1" >>confdefs.h
 
 fi
+ac_fn_c_check_header_compile "$LINENO" "sys/procctl.h" "ac_cv_header_sys_procctl_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_procctl_h" = xyes
+then :
+  printf '%s\n' "#define HAVE_SYS_PROCCTL_H 1" >>confdefs.h
+
+fi
 ac_fn_c_check_header_compile "$LINENO" "sys/processor.h" "ac_cv_header_sys_processor_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_processor_h" = xyes
 then :
@@ -8743,6 +8749,12 @@ ac_fn_c_check_func "$LINENO" "prctl" "ac_cv_func_prctl"
 if test "x$ac_cv_func_prctl" = xyes
 then :
   printf '%s\n' "#define HAVE_PRCTL 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "procctl" "ac_cv_func_procctl"
+if test "x$ac_cv_func_procctl" = xyes
+then :
+  printf '%s\n' "#define HAVE_PROCCTL 1" >>confdefs.h
 
 fi
 ac_fn_c_check_func "$LINENO" "timegm" "ac_cv_func_timegm"
@@ -13578,9 +13590,33 @@ rm -rf conftest*
 
 CPPFLAGS=$apr_old_cppflags
 
-  if test $ac_cv_define_APR_HAS_RANDOM = "no"; then
-    echo "You need APR random support to use mod_auth_digest."
-    echo "Look at APR configure options --with-egd and --with-devrandom."
+
+apr_old_cppflags=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $INCLUDES"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <apr.h>
+#if APR_HAS_SHARED_MEMORY
+YES_IS_DEFINED
+#endif
+
+_ACEOF
+if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+  $EGREP_TRADITIONAL "YES_IS_DEFINED" >/dev/null 2>&1
+then :
+  ac_cv_define_APR_HAS_SHARED_MEMORY=yes
+else case e in #(
+  e) ac_cv_define_APR_HAS_SHARED_MEMORY=no ;;
+esac
+fi
+rm -rf conftest*
+
+CPPFLAGS=$apr_old_cppflags
+
+  if test "${ac_cv_define_APR_HAS_RANDOM}X${ac_cv_define_APR_HAS_SHARED_MEMORY}" != "yesXyes"; then
+    { printf '%s\n' "$as_me:${as_lineno-$LINENO}: mod_auth_digest requires APR with random and shared memory support" >&5
+printf '%s\n' "$as_me: mod_auth_digest requires APR with random and shared memory support" >&6;}
     enable_auth_digest="no"
   fi
 
@@ -42316,7 +42352,7 @@ printf '%s\n' "$as_me: " >&6;}
 
 
 
-  APACHE_VAR_SUBST="$APACHE_VAR_SUBST SVN"
+  APACHE_VAR_SUBST="$APACHE_VAR_SUBST GIT"
 
 
 

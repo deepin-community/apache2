@@ -1,3 +1,98 @@
 This directory contains useful test code for testing various bits
 of Apache functionality.  This stuff is for the developers only,
 so we might remove it on public releases.
+
+
+Python / pytest test suites
+===========================
+
+There are two complementary Python (pytest) test suites in this directory,
+run as one pytest project against an already-built httpd.
+
+  pyhttpd / modules/   httpd's own test framework.  Covers HTTP/2, mod_md
+                       (ACME), HTTP/1, proxy and core behaviour.  Drives the
+                       server with external clients (curl, nghttp, h2load);
+                       each test package writes the configuration it needs and
+                       restarts the server.  Framework code lives in pyhttpd/;
+                       tests live in modules/{core,http1,http2,md,proxy,...}/.
+
+  pytest_suite/        A self-contained port of the classic Perl Apache::Test
+                       suite (core HTTP, per-module tests, security/CVE
+                       regressions, SSL/TLS, PHP).  One server with a static
+                       configuration, driven by an in-process Python HTTP
+                       client (httpx) and raw sockets.  It ships its own conf
+                       templates, document root and C test modules under
+                       pytest_suite/.  See pytest_suite/README.md for details,
+                       including how to add new tests.
+
+Both use the same framework underneath (pyhttpd/: finding and probing the
+build, marker-based skipping, starting and stopping httpd, ports, test
+certificates, C test modules).  The framework in pytest_suite/apache_pytest/
+is a thin layer over it, so that the classic test files stay identical to
+their upstream copy in the httpd-tests repository.
+
+One project, one environment: test/pyproject.toml holds the dependencies and
+the pytest configuration, test/uv.lock pins the versions, and test/.venv is
+the virtualenv.
+
+
+Running the tests: runtests.sh
+-------------------------------
+
+runtests.sh (runtests.bat on Windows) creates or updates the venv, finds apxs
+and php-fpm, and runs pytest from this directory.  It can be invoked from any
+directory.  Without a path it runs both suites.
+
+  ./runtests.sh                          # both suites
+  ./runtests.sh modules                  # only the modules/ suites
+  ./runtests.sh pytest_suite/tests       # only the classic suite
+  ./runtests.sh modules/http2 -k 003 -v  # a subset; any pytest option passes through
+  ./runtests.sh --apxs=/path/to/apxs     # a specific httpd build
+  ./runtests.sh tests/t/php --php-fpm=/path/to/php-fpm
+
+Paths are relative to this directory; a path relative to pytest_suite/
+(tests/t/php) is accepted as well.  ./run-one-test.sh PATH[::nodeid] re-runs a
+single test from a path as printed in a test run, and lists all tests when
+called without arguments.
+
+The venv is (re)built automatically when it is missing or pyproject.toml or
+uv.lock has changed, with `uv sync`; uv (https://docs.astral.sh/uv/) is required.  To force
+a clean rebuild, `rm -rf test/.venv`.  You can also run
+`.venv/bin/pytest --apxs=/path/to/apxs` yourself from test/.
+
+How the httpd build is found: from --apxs (or $APXS); else from --httpd with
+--conf (or $HTTPD); else from the config.ini that httpd's configure generates
+in pyhttpd/ (or $PYHTTPD_CONFIG); runtests.sh only falls back to an apxs on
+$PATH without that.  It is found once, before the tests are collected, and
+both suites, and every skip and expected failure, use that one build; a
+build named with --apxs or --httpd that is not usable stops the run.  The
+modules/ suites
+need curl and, for HTTP/2, nghttp2 and h2load; modules/md needs an ACME test
+server (pebble) and skips without it.  A suite whose optional dependency is
+missing skips (and fails under --strict-optional).
+
+Ports: the modules/ suites listen on free ports picked for each test
+environment.  --fixed-ports uses the ports of config.ini (5001 ...) instead,
+--base-port N uses N to N+4.
+
+Error log: the modules/ suites fail a test that makes httpd log an unexpected
+error or warning.  The classic suite does the same; what it expects is listed
+in pyhttpd/classic_errorlog.py (--classic-elog-report=FILE lists what each
+test caused instead of failing).
+
+The C modules the tests load (mod_aptest, mod_h1test, mod_h2test, the
+c-modules/ of pytest_suite) are built with apxs, once: next to each .so a
+.stamp records the sources, defines and the httpd it was built for, and a
+module is rebuilt when one of them changes, e.g. when you point --apxs at
+another build. --clean-modules removes all of them first.
+
+From a build tree, `make check-all-pytest` builds the check/ tree and runs the
+same thing; pass paths and options as PYTEST_ARGS, for example
+`make check-all-pytest PYTEST_ARGS=modules/http2`.
+
+Other contents
+--------------
+
+  unit/                C-based unit tests (libcheck / httpdunit).
+  clients/             helper client programs used by the tests.
+  *.c                  small standalone C test programs.

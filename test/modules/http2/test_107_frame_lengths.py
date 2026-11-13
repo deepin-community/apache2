@@ -15,7 +15,8 @@ def mk_text_file(fpath: str, lines: int):
             fd.write("\n")
 
 
-@pytest.mark.skipif(condition=H2TestEnv.is_unsupported, reason="mod_http2 not supported here")
+@pytest.mark.skipif(condition=H2TestEnv.is_unsupported(), reason="mod_http2 not supported here")
+@H2TestEnv.needs_nghttp()
 class TestFrameLengths:
 
     URI_PATHS = []

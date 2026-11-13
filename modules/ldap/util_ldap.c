@@ -878,7 +878,12 @@ static util_ldap_connection_t *
         l->st = st;
 
 #if APR_HAS_THREADS
-        apr_thread_mutex_create(&l->lock, APR_THREAD_MUTEX_DEFAULT, l->pool);
+        /* uldap_connection_find() relies on apr_thread_mutex_trylock() failing
+         * for a connection this thread already holds. APR_THREAD_MUTEX_DEFAULT
+         * is a recursive critical section on Windows, which would hand the same
+         * connection back to a nested caller, so ask for a non-recursive lock.
+         */
+        apr_thread_mutex_create(&l->lock, APR_THREAD_MUTEX_UNNESTED, l->pool);
         apr_thread_mutex_lock(l->lock);
 #endif
         l->bound = 0;
@@ -897,8 +902,23 @@ static util_ldap_connection_t *
          */
         l->secure = secureflag;
 
-        /* save away a copy of the client cert list that is presently valid */
-        l->client_certs = apr_array_copy_hdr(l->pool, dc->client_certs);
+        /* Deep-copy the client cert list into the connection pool so that
+         * the cached connection does not retain pointers into the
+         * (potentially short-lived) per-directory config pool.
+         */
+        l->client_certs = apr_array_copy(l->pool, dc->client_certs);
+        if (!apr_is_empty_array(l->client_certs)) {
+            int i;
+            apr_ldap_opt_tls_cert_t *certs;
+
+            certs = (apr_ldap_opt_tls_cert_t *)l->client_certs->elts;
+            for (i = 0; i < l->client_certs->nelts; i++) {
+                if (certs[i].path)
+                    certs[i].path = apr_pstrdup(l->pool, certs[i].path);
+                if (certs[i].password)
+                    certs[i].password = apr_pstrdup(l->pool, certs[i].password);
+            }
+        }
 
         /* whether or not to keep this connection in the pool when it's returned */
         l->keep = (st->connection_pool_ttl == 0) ? 0 : 1;
