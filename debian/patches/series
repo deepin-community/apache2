@@ -5,3 +5,4 @@ customize_apxs.patch
 build_suexec-custom.patch
 reproducible_builds.diff
 fix-macro.patch
+htdigest-link-crypt.patch

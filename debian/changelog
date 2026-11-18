@@ -1,3 +1,14 @@
+apache2 (2.4.71-1~deb13u1deepin1) unstable; urgency=medium
+
+  * Fix build failure on sw64 architecture by adding $(CRYPT_LIBS) to PROGRAM_LDADD
+    - Add $(CRYPT_LIBS) to PROGRAM_LDADD in Makefile.in for the main apache2 binary
+    - Add $(CRYPT_LIBS) to PROGRAM_LDADD in support/Makefile.in for the support tools
+    - On sw64, libcrypt.so.1.1 is not available, causing undefined reference to
+      crypt_r@XCRYPT_2.0 for tools that do not explicitly link with -lcrypt
+    - Restore the patch that was dropped during the 2.4.71 sync
+
+ -- lichenggang <lichenggang@uniontech.com>  Wed, 18 Nov 2026 15:57:09 +0800
+
 apache2 (2.4.71-1~deb13u1) trixie-security; urgency=medium
 
   * New upstream release
